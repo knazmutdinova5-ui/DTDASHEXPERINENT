@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Дашборд продаж · Янв–Июн 2026</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<style>
+  :root{
+    --ink:#1C2B22;
+    --ink-soft:#2E4434;
+    --paper:#EFF1E6;
+    --card:#FBFAF4;
+    --line:#D9D9C8;
+    --muted:#5C6B5E;
+    --gold:#C99A2E;
+    --gold-soft:#E8D8AC;
+    --fern:#4F7A52;
+    --fern-soft:#CFE0CE;
+    --rust:#A6432F;
+    --rust-soft:#EFD1C7;
+    --slate:#3C5A6B;
+    --slate-soft:#CFDDE3;
+    --shadow: 0 1px 2px rgba(28,43,34,0.06), 0 4px 16px rgba(28,43,34,0.06);
+    --radius: 14px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'Inter',sans-serif;
+    line-height:1.45;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1280px;margin:0 auto;padding:0 28px 60px;}
+
+  /* ---------- Header ---------- */
+  header.hero{
+    background:linear-gradient(180deg, var(--ink) 0%, var(--ink-soft) 100%);
+    color:var(--paper);
+    position:relative;
+    overflow:hidden;
+    border-radius:0 0 22px 22px;
+    margin-bottom:28px;
+  }
+  header.hero::before{
+    content:"";
+    position:absolute; inset:0;
+    background-image: repeating-linear-gradient(
+      90deg,
+      rgba(201,154,46,0.07) 0px,
+      rgba(201,154,46,0.07) 1px,
+      transparent 1px,
+      transparent 26px
+    );
+    pointer-events:none;
+  }
+  .hero-inner{position:relative; padding:38px 28px 30px; max-width:1280px; margin:0 auto;}
+  .eyebrow{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:12px; letter-spacing:.14em; text-transform:uppercase;
+    color:var(--gold-soft); margin:0 0 10px;
+  }
+  h1{
+    font-family:'Fraunces',serif;
+    font-weight:600;
+    font-size:clamp(28px,4vw,42px);
+    margin:0 0 6px;
+    letter-spacing:-0.01em;
+  }
+  .hero-sub{color:#C9D2C7; font-size:14.5px; max-width:640px; margin:0 0 26px;}
+
+  .kpi-row{
+    display:grid; grid-template-columns:repeat(5,1fr); gap:14px;
+    margin-bottom:26px;
+  }
+  .kpi{
+    background:rgba(251,250,244,0.06);
+    border:1px solid rgba(251,250,244,0.14);
+    border-radius:12px; padding:16px 18px;
+  }
+  .kpi .label{font-size:12px; color:#B7C2B6; text-transform:uppercase; letter-spacing:.06em; margin-bottom:6px;}
+  .kpi .value{font-family:'IBM Plex Mono',monospace; font-size:22px; font-weight:600; color:var(--paper);}
+  .kpi .delta{font-size:12px; margin-top:4px;}
+  .kpi.danger .value{color:#E9B6A6;}
+  .kpi.good .value{color:#BFE0BD;}
+
+  /* ---------- Harvest bar (signature element) ---------- */
+  .harvest{position:relative;}
+  .harvest-label{display:flex; justify-content:space-between; font-size:12px; color:#C9D2C7; margin-bottom:8px; font-family:'IBM Plex Mono',monospace;}
+  .harvest-track{
+    display:flex; width:100%; height:30px; border-radius:8px; overflow:hidden;
+    border:1px solid rgba(251,250,244,0.18);
+  }
+  .seg{height:100%; display:flex; align-items:center; justify-content:center; font-size:11px; font-family:'IBM Plex Mono',monospace; color:var(--ink); white-space:nowrap; overflow:hidden; transition:width .4s ease;}
+  .seg.paid{background:var(--fern);}
+  .seg.current{background:var(--gold);}
+  .seg.pdz{background:var(--rust); color:#FBEAE3;}
+  .harvest-legend{display:flex; gap:18px; margin-top:10px; font-size:12px; color:#C9D2C7;}
+  .harvest-legend span{display:inline-flex; align-items:center; gap:6px;}
+  .dot{width:9px;height:9px;border-radius:50%;display:inline-block;}
+  .dot.paid{background:var(--fern);} .dot.current{background:var(--gold);} .dot.pdz{background:var(--rust);}
+
+  /* ---------- Filters ---------- */
+  .filters{
+    display:flex; flex-wrap:wrap; align-items:center; gap:10px;
+    background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+    padding:14px 16px; margin-bottom:24px; box-shadow:var(--shadow);
+  }
+  .filters .group-label{font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin-right:2px;}
+  .pill{
+    border:1px solid var(--line); background:var(--paper); color:var(--ink);
+    border-radius:20px; padding:6px 13px; font-size:13px; cursor:pointer;
+    font-family:'IBM Plex Mono',monospace; transition:all .15s ease;
+  }
+  .pill.active{background:var(--ink); color:var(--paper); border-color:var(--ink);}
+  select{
+    border:1px solid var(--line); background:var(--paper); color:var(--ink);
+    border-radius:8px; padding:7px 10px; font-size:13px; font-family:'Inter',sans-serif;
+  }
+  .reset-btn{
+    margin-left:auto; border:1px solid var(--rust); color:var(--rust); background:transparent;
+    border-radius:8px; padding:7px 14px; font-size:13px; cursor:pointer; font-weight:600;
+  }
+  .reset-btn:hover{background:var(--rust); color:#fff;}
+
+  /* ---------- Grid / Cards ---------- */
+  .grid{display:grid; grid-template-columns:repeat(2,1fr); gap:18px; margin-bottom:18px;}
+  .grid.wide{grid-template-columns:1fr;}
+  .card{
+    background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+    padding:18px 20px 14px; box-shadow:var(--shadow);
+  }
+  .card h3{
+    font-family:'Fraunces',serif; font-weight:600; font-size:16px; margin:0 0 2px; color:var(--ink);
+  }
+  .card .sub{font-size:12px; color:var(--muted); margin-bottom:12px;}
+  .chart-box{position:relative; height:260px;}
+  .chart-box.tall{height:320px;}
+
+  /* ---------- Table ---------- */
+  table{width:100%; border-collapse:collapse; font-size:13.5px;}
+  thead th{
+    text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.05em;
+    color:var(--muted); padding:8px 10px; border-bottom:1px solid var(--line);
+  }
+  tbody td{padding:9px 10px; border-bottom:1px solid var(--line); font-family:'IBM Plex Mono',monospace; font-size:13px;}
+  tbody td.name{font-family:'Inter',sans-serif; font-size:13.5px;}
+  tbody tr:hover{background:var(--paper);}
+  .num{text-align:right;}
+  .badge-risk{
+    display:inline-block; padding:2px 8px; border-radius:6px; font-size:11.5px; font-weight:600;
+  }
+  .badge-risk.high{background:var(--rust-soft); color:var(--rust);}
+  .badge-risk.mid{background:var(--gold-soft); color:#8a6a1d;}
+  .badge-risk.low{background:var(--fern-soft); color:var(--fern);}
+
+  /* ---------- Section titles & ranked tables ---------- */
+  .section-title{
+    font-family:'Fraunces',serif; font-weight:600; font-size:21px; color:var(--ink);
+    margin:8px 0 14px; padding-top:22px; border-top:1px solid var(--line);
+    display:flex; align-items:baseline; gap:10px; flex-wrap:wrap;
+  }
+  .section-title .tag{
+    font-family:'IBM Plex Mono',monospace; font-size:11.5px; color:var(--muted); font-weight:500;
+    text-transform:none; letter-spacing:0;
+  }
+  .card .total-tag{
+    font-family:'IBM Plex Mono',monospace; font-size:12.5px; color:var(--ink); font-weight:600;
+    background:var(--paper); border:1px solid var(--line); border-radius:7px; padding:3px 9px;
+    float:right; margin-top:-2px;
+  }
+  .dot-sw{width:9px;height:9px;border-radius:50%;display:inline-block;margin-right:7px;vertical-align:middle;}
+  .trend-up{color:var(--fern); font-weight:600;}
+  .trend-down{color:var(--rust); font-weight:600;}
+  .table-scroll{max-height:380px; overflow-y:auto; margin-top:4px;}
+  .table-scroll thead th{position:sticky; top:0; background:var(--card);}
+
+  /* ---------- Data source status ---------- */
+  .source-row{display:flex; align-items:center; gap:10px; margin:-2px 0 22px; flex-wrap:wrap;}
+  .source-pill{
+    font-family:'IBM Plex Mono',monospace; font-size:11.5px; padding:4px 10px; border-radius:20px;
+    display:inline-flex; align-items:center; gap:6px; border:1px solid rgba(251,250,244,0.2);
+    background:rgba(251,250,244,0.06); color:#C9D2C7;
+  }
+  .source-pill .led{width:7px;height:7px;border-radius:50%; background:#8C8268;}
+  .source-pill.live .led{background:#7FCB81; box-shadow:0 0 0 3px rgba(127,203,129,0.18);}
+  .source-pill.offline .led{background:#E0A24A;}
+  .source-pill.error .led{background:#E07A6B;}
+  .refresh-btn{
+    font-family:'IBM Plex Mono',monospace; font-size:11.5px; padding:4px 11px; border-radius:20px;
+    border:1px solid rgba(251,250,244,0.25); background:transparent; color:#E8D8AC; cursor:pointer;
+  }
+  .refresh-btn:hover{background:rgba(251,250,244,0.1);}
+  .refresh-btn:disabled{opacity:.5; cursor:default;}
+
+  footer{font-size:12px; color:var(--muted); padding-top:18px; border-top:1px solid var(--line);}
+  footer p{margin:4px 0;}
+
+  @media (max-width:880px){
+    .kpi-row{grid-template-columns:repeat(2,1fr);}
+    .grid{grid-template-columns:1fr;}
+    .wrap{padding:0 14px 40px;}
+    .hero-inner{padding:28px 16px 24px;}
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="hero-inner">
+    <p class="eyebrow">Агроотчёт · Январь–Июнь 2026</p>
+    <h1>Дашборд продаж</h1>
+    <p class="hero-sub">Семена, генетика, кормовые добавки и оборудование — 59 клиентов, 11 менеджеров, 3 юр. лица. Данные нормализованы (объединены дублирующиеся написания отделов и поставщиков).</p>
+
+    <div class="source-row">
+      <span class="source-pill offline" id="source-pill"><span class="led"></span><span id="source-text">Офлайн-снимок · загрузка…</span></span>
+      <button class="refresh-btn" id="refresh-btn">⟳ Обновить</button>
+    </div>
+
+    <div class="kpi-row">
+      <div class="kpi">
+        <div class="label">Отгрузка</div>
+        <div class="value" id="kpi-ship">—</div>
+      </div>
+      <div class="kpi good">
+        <div class="label">Оплачено</div>
+        <div class="value" id="kpi-paid">—</div>
+        <div class="delta" id="kpi-paid-pct">—</div>
+      </div>
+      <div class="kpi">
+        <div class="label">Задолженность всего</div>
+        <div class="value" id="kpi-debt-total">—</div>
+        <div class="delta" id="kpi-debt-total-pct">—</div>
+      </div>
+      <div class="kpi">
+        <div class="label">Текущая задолж.</div>
+        <div class="value" id="kpi-current">—</div>
+      </div>
+      <div class="kpi danger">
+        <div class="label">Просрочка (ПДЗ)</div>
+        <div class="value" id="kpi-pdz">—</div>
+        <div class="delta" id="kpi-pdz-pct">—</div>
+      </div>
+    </div>
+
+    <div class="harvest">
+      <div class="harvest-label"><span>Сбор урожая оплат — структура отгрузки</span><span id="harvest-total">—</span></div>
+      <div class="harvest-track">
+        <div class="seg paid" id="seg-paid"></div>
+        <div class="seg current" id="seg-current"></div>
+        <div class="seg pdz" id="seg-pdz"></div>
+      </div>
+      <div class="harvest-legend">
+        <span><span class="dot paid"></span>Оплачено</span>
+        <span><span class="dot current"></span>Текущая (не просрочена)</span>
+        <span><span class="dot pdz"></span>ПДЗ (просрочена)</span>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <div class="filters" id="filters">
+    <span class="group-label">Год</span>
+    <select id="f-year"><option value="all">Все</option></select>
+    <span class="group-label">Месяц</span>
+    <div id="month-pills"></div>
+    <span class="group-label">Юр. лицо</span>
+    <select id="f-legal"><option value="all">Все</option></select>
+    <span class="group-label">Отдел</span>
+    <select id="f-dept"><option value="all">Все</option></select>
+    <span class="group-label">Менеджер</span>
+    <select id="f-manager"><option value="all">Все</option></select>
+    <button class="reset-btn" id="reset-btn">Сбросить</button>
+  </div>
+
+  <div class="grid wide">
+    <div class="card">
+      <h3>Динамика по месяцам</h3>
+      <div class="sub">Отгрузка (столбцы) и оплата (линия), ₽</div>
+      <div class="chart-box tall"><canvas id="chart-monthly"></canvas></div>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <h3>Отгрузка по отделам</h3>
+      <div class="sub">Кто формирует выручку</div>
+      <div class="chart-box"><canvas id="chart-dept"></canvas></div>
+    </div>
+    <div class="card">
+      <h3>ПДЗ по отделам</h3>
+      <div class="sub">Где сосредоточен риск просрочки</div>
+      <div class="chart-box"><canvas id="chart-pdz-dept"></canvas></div>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <h3>Топ менеджеров</h3>
+      <div class="sub">По сумме отгрузки</div>
+      <div class="chart-box"><canvas id="chart-manager"></canvas></div>
+    </div>
+    <div class="card">
+      <h3>Топ групп товара</h3>
+      <div class="sub">По сумме отгрузки</div>
+      <div class="chart-box"><canvas id="chart-product"></canvas></div>
+    </div>
+  </div>
+
+  <div class="section-title">Менеджеры и отделы — динамика по месяцам<span class="tag">вклад каждого + тренд янв→июн</span></div>
+
+  <div class="grid wide">
+    <div class="card">
+      <h3>Продажи по менеджерам по месяцам</h3>
+      <div class="sub">Столбцы — отгрузка за месяц с разбивкой по менеджерам (стек)</div>
+      <div class="chart-box tall"><canvas id="chart-manager-month"></canvas></div>
+      <table style="margin-top:16px;">
+        <thead><tr><th>Менеджер</th><th class="num">Итого, ₽</th><th class="num">Доля</th><th class="num">Тренд</th></tr></thead>
+        <tbody id="manager-month-legend"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="grid wide">
+    <div class="card">
+      <h3>Продажи по отделам по месяцам</h3>
+      <div class="sub">Столбцы — отгрузка за месяц с разбивкой по отделам (стек)</div>
+      <div class="chart-box tall"><canvas id="chart-dept-month"></canvas></div>
+      <table style="margin-top:16px;">
+        <thead><tr><th>Отдел</th><th class="num">Итого, ₽</th><th class="num">Доля</th><th class="num">Тренд</th></tr></thead>
+        <tbody id="dept-month-legend"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="grid wide">
+    <div class="card">
+      <h3>Топ-10 клиентов</h3>
+      <div class="sub">По сумме отгрузки</div>
+      <div class="chart-box tall"><canvas id="chart-client"></canvas></div>
+    </div>
+  </div>
+
+  <div class="section-title">Задолженность<span class="tag">рейтинг от большей к меньшей · не зависит от месяца, реагирует на фильтры юр.лица/отдела/менеджера, кроме КЗ</span></div>
+
+  <div class="grid wide">
+    <div class="card">
+      <h3>ДЗ основные договора<span class="total-tag" id="dz-total">—</span></h3>
+      <div class="sub">Клиенты без признака «Прямые договора по генетике», по убыванию долга · топ-15 на графике</div>
+      <div class="chart-box" style="height:420px;"><canvas id="chart-dz"></canvas></div>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>#</th><th>Клиент</th><th class="num">Долг, ₽</th><th class="num">Доля</th></tr></thead>
+          <tbody id="dz-table"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid wide">
+    <div class="card">
+      <h3>ДЗ прямые договора (Генетика · РУСПЛЕМ)<span class="total-tag" id="dzdirect-total">—</span></h3>
+      <div class="sub">Подмножество ДЗ по прямым договорам генетики, по убыванию</div>
+      <div class="chart-box" style="height:320px;"><canvas id="chart-dz-direct"></canvas></div>
+      <table>
+        <thead><tr><th>#</th><th>Клиент</th><th class="num">Долг, ₽</th><th class="num">Доля</th></tr></thead>
+        <tbody id="dzdirect-table"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="grid wide">
+    <div class="card">
+      <h3>Кредиторская задолженность (КЗ)<span class="total-tag" id="kz-total">—</span></h3>
+      <div class="sub">Наш долг поставщикам, по убыванию · срез на 18.06.2026, источник — вкладка «КЗ»</div>
+      <div class="chart-box" style="height:300px;"><canvas id="chart-kz"></canvas></div>
+      <table>
+        <thead><tr><th>#</th><th>Поставщик</th><th class="num">Долг, ₽</th><th class="num">Доля</th></tr></thead>
+        <tbody id="kz-table"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="grid wide">
+    <div class="card">
+      <h3>Клиенты с просроченной задолженностью</h3>
+      <div class="sub">Сортировка по сумме ПДЗ, топ-15</div>
+      <table>
+        <thead>
+          <tr>
+            <th>Клиент</th><th>Отдел</th><th>Менеджер</th>
+            <th class="num">Отгрузка</th><th class="num">ПДЗ</th><th class="num">Макс. дней просрочки</th><th>Риск</th>
+          </tr>
+        </thead>
+        <tbody id="overdue-table"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <footer>
+    <p><strong>Примечания по данным:</strong> объединены варианты написания отделов («Генетика»/«генетика», «Кормление»/«кормление», «растениеводство»→«Растениеводство») и поставщиков («РУСПЛЕМ ООО»→«РУСПЛЕМ», «ЮПЛ ООО»→«ЮПЛ»), а также групп товара («Азот»/«азот», «Люцерна»/«люцерна»).</p>
+    <p>Поле «наличие документов» заполнено лишь в 193 строках из 1787 (~11%) — остальные не содержат отметки о подтверждающих документах. Рекомендуется уточнить у бухгалтерии, означает ли пропуск отсутствие документов или просто незаполненное поле.</p>
+    <p>Источник: вкладка «Отчет о продажах», файл отчет_о_продажах-2.xlsx.</p>
+  </footer>
+
+</div>
+
+<script>
+let RAW = [{"year": 2026, "month": 1, "date": "2026-01-07", "legal": "ДТ", "dept": "Кормление", "manager": "Ильяс", "client": "ПМК ООО", "supplier": "Оллтек", "group": "и-сак", "product": "И-Сак (мешки 25 кг)", "ship": 380000.0, "debt": 0.0, "overdue_days": -4.0, "pdz": 0.0, "paid": 380000.0, "doc": "да", "direct": false}, {"year": 2026, "month": 1, "date": "2026-01-07", "legal": "ДТ", "dept": "Кормление", "manager": "Ильяс", "client": "ПМК ООО", "supplier": "Оллтек", "group": "микосорб", "product": "Микосорб (мешки 25 кг)", "ship": 174000.0, "debt": 0.0, "overdue_days": -4.0, "pdz": 0.0, "paid": 174000.0, "doc": "да", "direct": false}, {"year": 2026, "month": 1, "date": "2026-01-07", "legal": "ДТ", "dept": "Кормление", "manager": "Ильяс", "client": "ПМК ООО", "supplier": "Оллтек", "group": "оптиген", "product": "Оптиген II (рф) 25кг", "ship": 851000.0, "debt": 0.0, "overdue_days": -4.0, "pdz": 0.0, "paid": 851000.0, "doc": "да", "direct": false}, {"year": 2026, "month": 1, "date": "2026-01-12", "legal": "ДТ", "dept": "Оборудование", "manager": "Снежана", "client": "САРМАН ООО АФ", "supplier": NaN, "group": NaN, "product": "Электронный модуль счетчика молока ISS 05 (SMT)/ Swiftflo commander", "ship": 177500.0, "debt": 177500.0, "overdue_days": 127.0, "pdz": 177500.0, "paid": 0.0, "doc": "", "direct": false}, {"year": 2026, "month": 1, "date": "2026-01-13", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "ПМК ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 007HO15100 MYSTIC традиционное", "ship": 102708.0, "debt": 0.0, "overdue_days": 34.0, "pdz": 0.0, "paid": 102708.0, "doc": "да", "direct": false}, {"year": 2026, "month": 1, "date": "2026-01-13", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "ПМК ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 014HO14226 ROME традиционное", "ship": 129600.0, "debt": 0.0, "overdue_days": 34.0, "pdz": 0.0, "paid": 129600.0, "doc": "да", "direct": false}, {"year": 2026, "month": 1, "date": "2026-01-13", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "ПМК ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 014HO15833 DEADPOOL традиционное", "ship": 142740.0, "debt": 0.0, "overdue_days": 34.0, "pdz": 0.0, "paid": 142740.0, "doc": "да", "direct": false}, {"year": 2026, "month": 1, "date": "2026-01-13", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "ПМК ООО", "supplier": "Прочее", "group": "азот", "product": "Азот жидкий ГОСТ 9293-74", "ship": 3060.0, "debt": 0.0, "overdue_days": 34.0, "pdz": 0.0, "paid": 3060.0, "doc": "да", "direct": false}, {"year": 2026, "month": 1, "date": "2026-01-15", "legal": "ДТ", "dept": "Кормление", "manager": "Ильяс", "client": "ПМК ООО", "supplier": "Оллтек", "group": "и-сак", "product": "И-Сак (мешки 25 кг)", "ship": 380000.0, "debt": 0.0, "overdue_days": -5.0, "pdz": 0.0, "paid": 380000.0, "doc": "да", "direct": false}, {"year": 2026, "month": 1, "date": "2026-01-15", "legal": "ДТ", "dept": "Кормление", "manager": "Ильяс", "client": "ПМК ООО", "supplier": "Оллтек", "group": "микосорб", "product": "Микосорб (мешки 25 кг)", "ship": 638000.0, "debt": 0.0, "overdue_days": -5.0, "pdz": 0.0, "paid": 638000.0, "doc": "да", "direct": false}, {"year": 2026, "month": 1, "date": "2026-01-15", "legal": "ДТ", "dept": "Кормление", "manager": "Ильяс", "client": "ПМК ООО", "supplier": "Оллтек", "group": "оптиген", "product": "Оптиген II (рф) 25кг", "ship": 851000.0, "debt": 0.0, "overdue_days": -5.0, "pdz": 0.0, "paid": 851000.0, "doc": "да", "direct": false}, {"year": 2026, "month": 1, "date": "2026-01-16", "legal": "ДТ", "dept": "Кормление", "manager": "Ильдар", "client": "СУРНАЙ ООО", "supplier": "Оллтек", "group": "и-сак", "product": "И-Сак (мешки 25 кг)", "ship": 121250.0, "debt": 0.0, "overdue_days": 5.0, "pdz": 0.0, "paid": 121250.0, "doc": "да", "direct": false}, {"year": 2026, "month": 1, "date": "2026-01-16", "legal": "ДТ", "dept": "Кормление", "manager": "Ильдар", "client": "СХП ЮЛБАТ ООО", "supplier": "Оллтек", "group": "и-сак", "product": "И-Сак (мешки 25 кг)", "ship": 97000.0, "debt": 0.0, "overdue_days": 11.0, "pdz": 0.0, "paid": 97000.0, "doc": "да", "direct": false}, {"year": 2026, "month": 1, "date": "2026-01-20", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "ПМК ООО", "supplier": "Прочее", "group": "доп.материалы", "product": "Обрезчик соломинок ОСП-01, ТУ BY 300491734/024-2020", "ship": 1460.0, "debt": 0.0, "overdue_days": -12.0, "pdz": 0.0, "paid": 1460.0, "doc": "да", "direct": false}, {"year": 2026, "month": 1, "date": "2026-01-21", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "СХП МОЛОЧНОЕ ОБЪЕДИНЕНИЕ ВАМИН ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 014HO17906 RIPLEY традиционное", "ship": 111960.0, "debt": 0.0, "overdue_days": 1.0, "pdz": 0.0, "paid": 111960.0, "doc": "да", "direct": false}, {"year": 2026, "month": 1, "date": "2026-01-21", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "СХП МОЛОЧНОЕ ОБЪЕДИНЕНИЕ ВАМИН ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 014HO17789 SUNFIRE традиционное", "ship": 111960.0, "debt": 0.0, "overdue_days": 64.0, "pdz": 0.0, "paid": 111960.0, "doc": "да", "direct": false}, {"year": 2026, "month": 1, "date": "2026-01-21", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "СХП МОЛОЧНОЕ ОБЪЕДИНЕНИЕ ВАМИН ООО", "supplier": "Прочее", "group": "азот", "product": "Азот жидкий ГОСТ 9293-74", "ship": 3570.0, "debt": 0.0, "overdue_days": 64.0, "pdz": 0.0, "paid": 3570.0, "doc": "да", "direct": false}, {"year": 2026, "month": 1, "date": "2026-01-26", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "АГРОФИРМА ВОЗРОЖДЕНИЕ ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 007HO16012 SCUBA традиционное", "ship": 131544.0, "debt": 0.0, "overdue_days": -4.0, "pdz": 0.0, "paid": 131544.0, "doc": "да", "direct": false}, {"year": 2026, "month": 1, "date": "2026-01-26", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "МОЛКО-ДРОЖЖАНОЕ ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 014HO16798 HAMLIN традиционное", "ship": 168696.0, "debt": 0.0, "overdue_days": 9.0, "pdz": 0.0, "paid": 168696.0, "doc": "да", "direct": false}, {"year": 2026, "month": 1, "date": "2026-01-26", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "МОЛКО-ДРОЖЖАНОЕ ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 007HO15100 MYSTIC традиционное", "ship": 277992.0, "debt": 0.0, "overdue_days": 9.0, "pdz": 0.0, "paid": 277992.0, "doc": "да", "direct": false}, {"year": 2026, "month": 1, "date": "2026-01-27", "legal": "ДТ", "dept": "Оборудование", "manager": "Снежана", "client": "САРМАН ООО АФ", "supplier": "Прочее", "group": NaN, "product": "Зап.части", "ship": 981300.17, "debt": 981300.17, "overdue_days": 142.0, "pdz": 981300.17, "paid": 0.0, "doc": "", "direct": false}, {"year": 2026, "month": 1, "date": "2026-01-28", "legal": "ДТ", "dept": "Кормление", "manager": "Ильдар", "client": "УНЫШ ООО АГРОФИРМА", "supplier": "ПТК АЙБИЭС ООО", "group": "фарматан", "product": "ФАРМАТАН (П), мешок 25 кг", "ship": 237500.0, "debt": 0.0, "overdue_days": 11.0, "pdz": 0.0, "paid": 237500.0, "doc": "да", "direct": false}, {"year": 2026, "month": 1, "date": "2026-01-28", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "ЯКТЫ ЮЛ ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 014HO16423 TAFFER традиционное", "ship": 224640.0, "debt": 0.0, "overdue_days": 49.0, "pdz": 0.0, "paid": 224640.0, "doc": "", "direct": false}, {"year": 2026, "month": 1, "date": "2026-01-28", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "ЯКТЫ ЮЛ ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 014HO15926 VAN GOGH традиционное", "ship": 60552.0, "debt": 0.0, "overdue_days": 65.0, "pdz": 0.0, "paid": 60552.0, "doc": "", "direct": false}, {"year": 2026, "month": 1, "date": "2026-01-28", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "ЯКТЫ ЮЛ ООО", "supplier": "Прочее", "group": "азот", "product": "Азот жидкий ГОСТ 9293-74", "ship": 5100.0, "debt": 0.0, "overdue_days": 65.0, "pdz": 0.0, "paid": 5100.0, "doc": "", "direct": false}, {"year": 2026, "month": 1, "date": "2026-01-30", "legal": "ДТ", "dept": "Растениеводство", "manager": "Артем", "client": "УДМУРТИЯ СПК (КОЛХОЗ)", "supplier": "Баренбруг", "group": "сорго-суданка", "product": "Сорго-суданковый гибрид Нутритоп Стар упак 20 кг", "ship": 3304065.6, "debt": 0.0, "overdue_days": 0.0, "pdz": 0.0, "paid": 3304065.6, "doc": "", "direct": false}, {"year": 2026, "month": 2, "date": "2026-02-02", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "ПМК ООО", "supplier": "Прочее", "group": "азот", "product": "Азот жидкий ГОСТ 9293-74", "ship": 8160.0, "debt": 0.0, "overdue_days": -13.0, "pdz": 0.0, "paid": 8160.0, "doc": "да", "direct": false}, {"year": 2026, "month": 2, "date": "2026-02-02", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "ПМК ООО", "supplier": "Прочее", "group": "доп.материалы", "product": "Нож для соломинок MiniCutter", "ship": 3060.0, "debt": 0.0, "overdue_days": -13.0, "pdz": 0.0, "paid": 3060.0, "doc": "да", "direct": false}, {"year": 2026, "month": 2, "date": "2026-02-09", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "УРАЛ СХПК", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 007HO16215 CONSPIRACY традиционное", "ship": 128412.0, "debt": 0.0, "overdue_days": -13.0, "pdz": 0.0, "paid": 128412.0, "doc": "да", "direct": false}, {"year": 2026, "month": 2, "date": "2026-02-09", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "УРАЛ СХПК", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 007HO15233 MILKY традиционное", "ship": 141900.0, "debt": 0.0, "overdue_days": -13.0, "pdz": 0.0, "paid": 141900.0, "doc": "да", "direct": false}, {"year": 2026, "month": 2, "date": "2026-02-09", "legal": "ДТ", "dept": "Оборудование", "manager": "Снежана", "client": "САРМАН ООО АФ", "supplier": NaN, "group": "зап части", "product": "Зап.части", "ship": 66183.66, "debt": 66183.66, "overdue_days": 129.0, "pdz": 66183.66, "paid": 0.0, "doc": "", "direct": false}, {"year": 2026, "month": 2, "date": "2026-02-10", "legal": "ДТ", "dept": "Генетика", "manager": "Анастасия", "client": "ИГЕНЧЕ ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 507HO16416 HOLISTIC-SEX сексированное", "ship": 249000.0, "debt": 0.0, "overdue_days": 30.0, "pdz": 0.0, "paid": 249000.0, "doc": "да", "direct": false}, {"year": 2026, "month": 2, "date": "2026-02-10", "legal": "ДТ", "dept": "Генетика", "manager": "Анастасия", "client": "ИГЕНЧЕ ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 507HO16469 TRUBADOR-SEX сексированное", "ship": 249000.0, "debt": 0.0, "overdue_days": 37.0, "pdz": 0.0, "paid": 249000.0, "doc": "да", "direct": false}, {"year": 2026, "month": 2, "date": "2026-02-12", "legal": "ДТ", "dept": "Кормление", "manager": "Ильяс", "client": "ПОБЕДА ООО  АГРОФИРМА", "supplier": "НикОМИКС ООО", "group": "Премиксы", "product": "Премикс П 60-1(1%)/17567", "ship": 792000.0, "debt": 0.0, "overdue_days": 5.0, "pdz": 0.0, "paid": 792000.0, "doc": "да", "direct": false}, {"year": 2026, "month": 2, "date": "2026-02-16", "legal": "ДТ", "dept": "Генетика", "manager": "Ильяс", "client": "АПК ПРОДОВОЛЬСТВЕННАЯ ПРОГРАММА ООО", "supplier": "Прочее", "group": "доп.материалы", "product": "005563, Санитарная рубашка упаковка х 80шт", "ship": 102840.0, "debt": 0.0, "overdue_days": 2.0, "pdz": 0.0, "paid": 102840.0, "doc": "да", "direct": false}, {"year": 2026, "month": 2, "date": "2026-02-16", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "ЗАИКОВСКИЙ ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 007HO15840 CASABLANCA традиционное", "ship": 66744.0, "debt": 0.0, "overdue_days": -12.0, "pdz": 0.0, "paid": 66744.0, "doc": "да", "direct": false}, {"year": 2026, "month": 2, "date": "2026-02-16", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "ЗАИКОВСКИЙ ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 014HO17389 FUTURIST-PP традиционное", "ship": 117612.0, "debt": 0.0, "overdue_days": -12.0, "pdz": 0.0, "paid": 117612.0, "doc": "да", "direct": false}, {"year": 2026, "month": 2, "date": "2026-02-16", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "ЗАИКОВСКИЙ ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 507HO16469 TRUBADOR-SEX сексированное", "ship": 108000.0, "debt": 0.0, "overdue_days": -12.0, "pdz": 0.0, "paid": 108000.0, "doc": "да", "direct": false}, {"year": 2026, "month": 2, "date": "2026-02-16", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "ЗАИКОВСКИЙ ООО", "supplier": "Прочее", "group": "азот", "product": "Азот жидкий ГОСТ 9293-74", "ship": 2040.0, "debt": 0.0, "overdue_days": -12.0, "pdz": 0.0, "paid": 2040.0, "doc": "да", "direct": false}, {"year": 2026, "month": 2, "date": "2026-02-18", "legal": "ДТ", "dept": "Кормление", "manager": "Ильяс", "client": "ПОБЕДА ООО  АГРОФИРМА", "supplier": NaN, "group": "и-сак", "product": "И-Сак (мешки 25 кг)", "ship": 718750.0, "debt": 0.0, "overdue_days": 7.0, "pdz": 0.0, "paid": 718750.0, "doc": "да", "direct": false}, {"year": 2026, "month": 2, "date": "2026-02-18", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "АГРОФИРМА ВОЗРОЖДЕНИЕ ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 007HO17162 HALIANT-P традиционное", "ship": 39600.0, "debt": 0.0, "overdue_days": 6.0, "pdz": 0.0, "paid": 39600.0, "doc": "да", "direct": false}, {"year": 2026, "month": 2, "date": "2026-02-18", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "АГРОФИРМА ВОЗРОЖДЕНИЕ ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 007HO17318 EPHEDRA традиционное", "ship": 194400.0, "debt": 0.0, "overdue_days": 6.0, "pdz": 0.0, "paid": 194400.0, "doc": "да", "direct": false}, {"year": 2026, "month": 2, "date": "2026-02-19", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "ЯКТЫ ЮЛ ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 007HO17698 PARO традиционное", "ship": 77536.8, "debt": 0.0, "overdue_days": 43.0, "pdz": 0.0, "paid": 77536.8, "doc": "да", "direct": false}, {"year": 2026, "month": 2, "date": "2026-02-19", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "ЯКТЫ ЮЛ ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 014HO15926 VAN GOGH традиционное", "ship": 60552.0, "debt": 0.0, "overdue_days": 43.0, "pdz": 0.0, "paid": 60552.0, "doc": "да", "direct": false}, {"year": 2026, "month": 2, "date": "2026-02-19", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "ЯКТЫ ЮЛ ООО", "supplier": "Прочее", "group": "азот", "product": "Азот жидкий ГОСТ 9293-74", "ship": 3570.0, "debt": 0.0, "overdue_days": 43.0, "pdz": 0.0, "paid": 3570.0, "doc": "да", "direct": false}, {"year": 2026, "month": 2, "date": "2026-02-20", "legal": "ДТ", "dept": "Генетика", "manager": "Анастасия", "client": "ИГЕНЧЕ ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 014HO16445 HOLLEY традиционное", "ship": 111731.4, "debt": 0.0, "overdue_days": 49.0, "pdz": 0.0, "paid": 111731.4, "doc": "да", "direct": false}, {"year": 2026, "month": 2, "date": "2026-02-20", "legal": "ДТ", "dept": "Генетика", "manager": "Анастасия", "client": "ИГЕНЧЕ ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 007HO16650 TONKA традиционное", "ship": 150282.0, "debt": 0.0, "overdue_days": 69.0, "pdz": 0.0, "paid": 150282.0, "doc": "да", "direct": false}, {"year": 2026, "month": 2, "date": "2026-02-20", "legal": "ДТ", "dept": "Генетика", "manager": "Анастасия", "client": "ИГЕНЧЕ ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 014HO15575 NEWPORT традиционное", "ship": 93456.0, "debt": 0.0, "overdue_days": 97.0, "pdz": 0.0, "paid": 93456.0, "doc": "да", "direct": false}, {"year": 2026, "month": 2, "date": "2026-02-20", "legal": "ДТ", "dept": "Генетика", "manager": "Анастасия", "client": "ИГЕНЧЕ ООО", "supplier": "Прочее", "group": "азот", "product": "Азот жидкий ГОСТ 9293-74", "ship": 8160.0, "debt": 0.0, "overdue_days": 97.0, "pdz": 0.0, "paid": 8160.0, "doc": "да", "direct": false}, {"year": 2026, "month": 2, "date": "2026-02-24", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "ПМК ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 007JE01990 BAR CAFE традиционное", "ship": 70092.0, "debt": 0.0, "overdue_days": 27.0, "pdz": 0.0, "paid": 70092.0, "doc": "да", "direct": false}, {"year": 2026, "month": 2, "date": "2026-02-24", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "ПМК ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 007JE01963 KASTLE традиционное", "ship": 70092.0, "debt": 0.0, "overdue_days": 27.0, "pdz": 0.0, "paid": 70092.0, "doc": "да", "direct": false}, {"year": 2026, "month": 2, "date": "2026-02-24", "legal": "ДТ", "dept": "Генетика", "manager": "Анастасия", "client": "ИГЕНЧЕ ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 007HO16137 GUARDIAN традиционное", "ship": 111731.4, "debt": 0.0, "overdue_days": 93.0, "pdz": 0.0, "paid": 111731.4, "doc": "да", "direct": false}, {"year": 2026, "month": 2, "date": "2026-02-24", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "СХП СЕВЕРНЫЙ ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 007HO17698 PARO традиционное", "ship": 77536.8, "debt": 0.0, "overdue_days": 2.0, "pdz": 0.0, "paid": 77536.8, "doc": "", "direct": false}, {"year": 2026, "month": 2, "date": "2026-02-24", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "СХП СЕВЕРНЫЙ ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 014HO17613 SUN MEERKAT традиционное", "ship": 155073.6, "debt": 0.0, "overdue_days": 85.0, "pdz": 0.0, "paid": 155073.6, "doc": "", "direct": false}, {"year": 2026, "month": 2, "date": "2026-02-24", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "СХП СЕВЕРНЫЙ ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 007HO17803 SERVANT традиционное", "ship": 110088.0, "debt": 0.0, "overdue_days": 85.0, "pdz": 0.0, "paid": 110088.0, "doc": "", "direct": false}, {"year": 2026, "month": 2, "date": "2026-02-24", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "СХП СЕВЕРНЫЙ ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 014HO17906 RIPLEY традиционное", "ship": 165132.0, "debt": 94993.2, "overdue_days": 100.0, "pdz": 94993.2, "paid": 70138.8, "doc": "", "direct": false}, {"year": 2026, "month": 2, "date": "2026-02-24", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "СХП СЕВЕРНЫЙ ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 014HO17789 SUNFIRE традиционное", "ship": 110088.0, "debt": 110088.0, "overdue_days": 100.0, "pdz": 110088.0, "paid": 0.0, "doc": "", "direct": false}, {"year": 2026, "month": 2, "date": "2026-02-24", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "СХП СЕВЕРНЫЙ ООО", "supplier": "Прочее", "group": "азот", "product": "Азот жидкий ГОСТ 9293-74", "ship": 10200.0, "debt": 10200.0, "overdue_days": 100.0, "pdz": 10200.0, "paid": 0.0, "doc": "", "direct": false}, {"year": 2026, "month": 2, "date": "2026-02-26", "legal": "ДТ", "dept": "Кормление", "manager": "Ильдар", "client": "ООО ИМЕНИ ТИМИРЯЗЕВА", "supplier": "БИОНА ООО", "group": "эндофорс", "product": "ЭНДОФОРС Ж (2л)", "ship": 108000.0, "debt": 0.0, "overdue_days": 0.0, "pdz": 0.0, "paid": 108000.0, "doc": "да", "direct": false}, {"year": 2026, "month": 3, "date": "2026-03-03", "legal": "ДТ", "dept": "Кормление", "manager": "Ильяс", "client": "ПМК ООО", "supplier": "Оллтек", "group": "микосорб", "product": "Микосорб (мешки 25 кг)", "ship": 331250.0, "debt": 0.0, "overdue_days": -1.0, "pdz": 0.0, "paid": 331250.0, "doc": "да", "direct": false}, {"year": 2026, "month": 3, "date": "2026-03-03", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "ООО ИМЕНИ ТИМИРЯЗЕВА", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 007HO16992 DUN традиционное", "ship": 232632.0, "debt": 0.0, "overdue_days": -329.0, "pdz": 0.0, "paid": 232632.0, "doc": "да", "direct": false}, {"year": 2026, "month": 3, "date": "2026-03-03", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "ООО ИМЕНИ ТИМИРЯЗЕВА", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 014HO16222 HARPED традиционное", "ship": 196020.0, "debt": 115808.66, "overdue_days": 93.0, "pdz": 115808.66, "paid": 80211.34, "doc": "да", "direct": false}, {"year": 2026, "month": 3, "date": "2026-03-03", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "ООО ИМЕНИ ТИМИРЯЗЕВА", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 007HO16313 ROSADO традиционное", "ship": 196020.0, "debt": 196020.0, "overdue_days": 93.0, "pdz": 196020.0, "paid": 0.0, "doc": "да", "direct": false}, {"year": 2026, "month": 3, "date": "2026-03-04", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "ЛЕЛЬВИЖ СПССК", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 507HO16651 SNAPPY-SEX сексированное", "ship": 55000.0, "debt": 0.0, "overdue_days": -5.0, "pdz": 0.0, "paid": 55000.0, "doc": "", "direct": false}, {"year": 2026, "month": 3, "date": "2026-03-04", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "ЛЕЛЬВИЖ СПССК", "supplier": "РУСПЛЕМ", "group": "азот", "product": "Азот жидкий ГОСТ 9293-74", "ship": 1020.0, "debt": 0.0, "overdue_days": -5.0, "pdz": 0.0, "paid": 1020.0, "doc": "", "direct": false}, {"year": 2026, "month": 3, "date": "2026-03-05", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "ЯКТЫ ЮЛ ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 007HO16203 TUBES традиционное", "ship": 129744.0, "debt": 0.0, "overdue_days": 71.0, "pdz": 0.0, "paid": 129744.0, "doc": "да", "direct": false}, {"year": 2026, "month": 3, "date": "2026-03-05", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "ЯКТЫ ЮЛ ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 007HO16215 CONSPIRACY традиционное", "ship": 85608.0, "debt": 0.0, "overdue_days": 71.0, "pdz": 0.0, "paid": 85608.0, "doc": "да", "direct": false}, {"year": 2026, "month": 3, "date": "2026-03-06", "legal": "ДТ", "dept": "Генетика", "manager": "Анастасия", "client": "СХП ТАТАРСТАН ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 014НО18110 REFUTE традиционное", "ship": 144612.0, "debt": 0.0, "overdue_days": 19.0, "pdz": 0.0, "paid": 144612.0, "doc": "да", "direct": false}, {"year": 2026, "month": 3, "date": "2026-03-06", "legal": "ДТ", "dept": "Генетика", "manager": "Анастасия", "client": "СХП ТАТАРСТАН ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 014НО17589 SACK традиционное", "ship": 144612.0, "debt": 0.0, "overdue_days": 19.0, "pdz": 0.0, "paid": 144612.0, "doc": "да", "direct": false}, {"year": 2026, "month": 3, "date": "2026-03-06", "legal": "ДТ", "dept": "Генетика", "manager": "Анастасия", "client": "СХП ТАТАРСТАН ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 014НО17453 SERRANO-ET традиционное", "ship": 192816.0, "debt": 0.0, "overdue_days": 19.0, "pdz": 0.0, "paid": 192816.0, "doc": "да", "direct": false}, {"year": 2026, "month": 3, "date": "2026-03-06", "legal": "ДТ", "dept": "Генетика", "manager": "Анастасия", "client": "СХП ТАТАРСТАН ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 007НО17697 POWERED традиционное", "ship": 289224.0, "debt": 271264.0, "overdue_days": 74.0, "pdz": 271264.0, "paid": 17960.0, "doc": "да", "direct": false}, {"year": 2026, "month": 3, "date": "2026-03-06", "legal": "ДТ", "dept": "Генетика", "manager": "Анастасия", "client": "СХП ТАТАРСТАН ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 014НО17260 HOEDOWN традиционное", "ship": 337428.0, "debt": 337428.0, "overdue_days": 74.0, "pdz": 337428.0, "paid": 0.0, "doc": "да", "direct": false}, {"year": 2026, "month": 3, "date": "2026-03-06", "legal": "ДТ", "dept": "Генетика", "manager": "Анастасия", "client": "СХП ТАТАРСТАН ООО", "supplier": "РУСПЛЕМ", "group": "доп.материалы", "product": "Чехол непрорезанный для катетера осеменения КРС (20уп/2000кор)", "ship": 10000.0, "debt": 10000.0, "overdue_days": 74.0, "pdz": 10000.0, "paid": 0.0, "doc": "да", "direct": false}, {"year": 2026, "month": 3, "date": "2026-03-06", "legal": "ДТ", "dept": "Генетика", "manager": "Анастасия", "client": "СХП ТАТАРСТАН ООО", "supplier": "РУСПЛЕМ", "group": "доп.материалы", "product": "005563, Санитарная рубашка упаковка х 80шт", "ship": 17210.0, "debt": 17210.0, "overdue_days": 74.0, "pdz": 17210.0, "paid": 0.0, "doc": "да", "direct": false}, {"year": 2026, "month": 3, "date": "2026-03-06", "legal": "ДТ", "dept": "Генетика", "manager": "Анастасия", "client": "СХП ТАТАРСТАН ООО", "supplier": "РУСПЛЕМ", "group": "доп.материалы", "product": "Перчатка ветеринарная с наплечником", "ship": 3843.0, "debt": 3843.0, "overdue_days": 74.0, "pdz": 3843.0, "paid": 0.0, "doc": "да", "direct": false}, {"year": 2026, "month": 3, "date": "2026-03-06", "legal": "ДТ", "dept": "Генетика", "manager": "Анастасия", "client": "СХП ТАТАРСТАН ООО", "supplier": "РУСПЛЕМ", "group": "доп.материалы", "product": "Перчатка И.О.", "ship": 6720.0, "debt": 6720.0, "overdue_days": 74.0, "pdz": 6720.0, "paid": 0.0, "doc": "да", "direct": false}, {"year": 2026, "month": 3, "date": "2026-03-06", "legal": "РП", "dept": "Генетика", "manager": "Анастасия", "client": "СХП ТАТАРСТАН ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": NaN, "ship": 802700.0, "debt": 0.0, "overdue_days": 16.0, "pdz": 0.0, "paid": 802700.0, "doc": "", "direct": true}, {"year": 2026, "month": 3, "date": "2026-03-10", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "УРАЛ СХПК", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 014HO15831 EAST традиционное", "ship": 274593.0, "debt": 0.0, "overdue_days": -11.0, "pdz": 0.0, "paid": 274593.0, "doc": "да", "direct": false}, {"year": 2026, "month": 3, "date": "2026-03-10", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "УРАЛ СХПК", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 014HO17405 LUCKYCHARM традиционное", "ship": 295020.0, "debt": 0.0, "overdue_days": -11.0, "pdz": 0.0, "paid": 295020.0, "doc": "да", "direct": false}, {"year": 2026, "month": 3, "date": "2026-03-10", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "УРАЛ СХПК", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 007HO15420 PORTER традиционное", "ship": 185616.0, "debt": 0.0, "overdue_days": -11.0, "pdz": 0.0, "paid": 185616.0, "doc": "да", "direct": false}, {"year": 2026, "month": 3, "date": "2026-03-12", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "МОЛКО-ДРОЖЖАНОЕ ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 007HO15100 MYSTIC традиционное", "ship": 277992.0, "debt": 0.0, "overdue_days": 19.0, "pdz": 0.0, "paid": 277992.0, "doc": "да", "direct": false}, {"year": 2026, "month": 3, "date": "2026-03-16", "legal": "РП", "dept": "Генетика", "manager": "Влад", "client": "СХП МОЛОЧНОЕ ОБЪЕДИНЕНИЕ ВАМИН ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": NaN, "ship": 652080.0, "debt": 0.0, "overdue_days": 44.0, "pdz": 0.0, "paid": 652080.0, "doc": "да", "direct": true}, {"year": 2026, "month": 3, "date": "2026-03-16", "legal": "РП", "dept": "Генетика", "manager": "Влад", "client": "СХП СЕВЕРНЫЙ ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": NaN, "ship": 869440.0, "debt": 869440.0, "overdue_days": 64.0, "pdz": 869440.0, "paid": 0.0, "doc": "да", "direct": true}, {"year": 2026, "month": 3, "date": "2026-03-16", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "СХП МОЛОЧНОЕ ОБЪЕДИНЕНИЕ ВАМИН ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 014HO17906 RIPLEY традиционное", "ship": 110088.0, "debt": 0.0, "overdue_days": 36.0, "pdz": 0.0, "paid": 110088.0, "doc": "да", "direct": false}, {"year": 2026, "month": 3, "date": "2026-03-16", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "СХП МОЛОЧНОЕ ОБЪЕДИНЕНИЕ ВАМИН ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 014HO17789 SUNFIRE традиционное", "ship": 110088.0, "debt": 0.0, "overdue_days": 36.0, "pdz": 0.0, "paid": 110088.0, "doc": "да", "direct": false}, {"year": 2026, "month": 3, "date": "2026-03-16", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "СХП МОЛОЧНОЕ ОБЪЕДИНЕНИЕ ВАМИН ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Азот жидкий ГОСТ 9293-74", "ship": 3060.0, "debt": 0.0, "overdue_days": 36.0, "pdz": 0.0, "paid": 3060.0, "doc": "да", "direct": false}, {"year": 2026, "month": 3, "date": "2026-03-16", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "СХП СЕВЕРНЫЙ ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 007HO17803 SERVANT традиционное", "ship": 330264.0, "debt": 330264.0, "overdue_days": 80.0, "pdz": 330264.0, "paid": 0.0, "doc": "да", "direct": false}, {"year": 2026, "month": 3, "date": "2026-03-16", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "СХП СЕВЕРНЫЙ ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 014HO17906 RIPLEY традиционное", "ship": 55044.0, "debt": 55044.0, "overdue_days": 80.0, "pdz": 55044.0, "paid": 0.0, "doc": "да", "direct": false}, {"year": 2026, "month": 3, "date": "2026-03-16", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "СХП СЕВЕРНЫЙ ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 014HO17789 SUNFIRE традиционное", "ship": 55044.0, "debt": 55044.0, "overdue_days": 80.0, "pdz": 55044.0, "paid": 0.0, "doc": "да", "direct": false}, {"year": 2026, "month": 3, "date": "2026-03-16", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "СХП СЕВЕРНЫЙ ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 014HO17066 LAPENO традиционное", "ship": 110088.0, "debt": 110088.0, "overdue_days": 80.0, "pdz": 110088.0, "paid": 0.0, "doc": "да", "direct": false}, {"year": 2026, "month": 3, "date": "2026-03-17", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "САРМАН ООО АФ", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 007НО17697 POWERED традиционное", "ship": 188892.0, "debt": 134868.0, "overdue_days": 63.0, "pdz": 134868.0, "paid": 54024.0, "doc": "да", "direct": false}, {"year": 2026, "month": 3, "date": "2026-03-17", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "САРМАН ООО АФ", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 014HO17066 LAPENO традиционное", "ship": 165132.0, "debt": 165132.0, "overdue_days": 63.0, "pdz": 165132.0, "paid": 0.0, "doc": "да", "direct": false}, {"year": 2026, "month": 3, "date": "2026-03-17", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "АГРОФИРМА АЗНАКАЙ ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 007НО17697 POWERED традиционное", "ship": 377784.0, "debt": 0.0, "overdue_days": 46.0, "pdz": 0.0, "paid": 377784.0, "doc": "да", "direct": false}, {"year": 2026, "month": 3, "date": "2026-03-17", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "АГРОФИРМА АЗНАКАЙ ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 014HO17066 LAPENO традиционное", "ship": 330264.0, "debt": 158048.0, "overdue_days": 63.0, "pdz": 158048.0, "paid": 172216.0, "doc": "да", "direct": false}, {"year": 2026, "month": 3, "date": "2026-03-18", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "ЯКТЫ ЮЛ ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 007HO16203 TUBES традиционное", "ship": 183600.0, "debt": 0.0, "overdue_days": 58.0, "pdz": 0.0, "paid": 183600.0, "doc": "да", "direct": false}, {"year": 2026, "month": 3, "date": "2026-03-18", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "ЯКТЫ ЮЛ ООО", "supplier": "Прочее", "group": "азот", "product": "Азот жидкий ГОСТ 9293-74", "ship": 5100.0, "debt": 0.0, "overdue_days": 58.0, "pdz": 0.0, "paid": 5100.0, "doc": "да", "direct": false}, {"year": 2026, "month": 3, "date": "2026-03-23", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "УРАЛ СХПК", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 507HO16469 TRUBADOR-SEX сексированное", "ship": 220000.0, "debt": 0.0, "overdue_days": -11.0, "pdz": 0.0, "paid": 220000.0, "doc": "да", "direct": false}, {"year": 2026, "month": 3, "date": "2026-03-23", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "УРАЛ СХПК", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 507HO16651 SNAPPY-SEX сексированное", "ship": 220000.0, "debt": 0.0, "overdue_days": -11.0, "pdz": 0.0, "paid": 220000.0, "doc": "да", "direct": false}, {"year": 2026, "month": 3, "date": "2026-03-23", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "УРАЛ СХПК", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 507HO16651 SNAPPY-SEX сексированное", "ship": 110000.0, "debt": 0.0, "overdue_days": -11.0, "pdz": 0.0, "paid": 110000.0, "doc": "да", "direct": false}, {"year": 2026, "month": 3, "date": "2026-03-24", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "МОЛКО ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 007HO15522 REV традиционное", "ship": 281556.0, "debt": 0.0, "overdue_days": 0.0, "pdz": 0.0, "paid": 281556.0, "doc": "да", "direct": false}, {"year": 2026, "month": 3, "date": "2026-03-24", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "МОЛКО ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 007JE007HO16363 JAILBREAK традиционное", "ship": 317196.0, "debt": 0.0, "overdue_days": 0.0, "pdz": 0.0, "paid": 317196.0, "doc": "да", "direct": false}, {"year": 2026, "month": 3, "date": "2026-03-24", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "МОЛКО ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 507HO16469 TRUBADOR-SEX сексированное", "ship": 275000.0, "debt": 0.0, "overdue_days": 0.0, "pdz": 0.0, "paid": 275000.0, "doc": "да", "direct": false}, {"year": 2026, "month": 3, "date": "2026-03-24", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "МОЛКО ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 507HO15255 PRIMEТIME-SEX сексированное", "ship": 275000.0, "debt": 0.0, "overdue_days": 0.0, "pdz": 0.0, "paid": 275000.0, "doc": "да", "direct": false}, {"year": 2026, "month": 3, "date": "2026-03-25", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "АГРОФИРМА ИМ.ГАВРИЛОВА ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 007HO17803 SERVANT традиционное", "ship": 110088.0, "debt": 0.0, "overdue_days": 21.0, "pdz": 0.0, "paid": 110088.0, "doc": "", "direct": false}, {"year": 2026, "month": 3, "date": "2026-03-25", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "АГРОФИРМА ИМ.ГАВРИЛОВА ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 014HO17613 SUN MEERKAT традиционное", "ship": 38768.4, "debt": 0.0, "overdue_days": 21.0, "pdz": 0.0, "paid": 38768.4, "doc": "", "direct": false}, {"year": 2026, "month": 3, "date": "2026-03-25", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "АГРОФИРМА ИМ.ГАВРИЛОВА ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 014HO17906 RIPLEY традиционное", "ship": 110088.0, "debt": 0.0, "overdue_days": 27.0, "pdz": 0.0, "paid": 110088.0, "doc": "", "direct": false}, {"year": 2026, "month": 3, "date": "2026-03-26", "legal": "ДТ", "dept": "Растениеводство", "manager": "Айгуль", "client": "АО ИМ.Н.Е. ТОКАРЛИКОВА", "supplier": "ЮПЛ", "group": "сорго-суданка", "product": "Сорго-суданский гибрид НУТРИТОП СТАР", "ship": 1554000.0, "debt": 0.0, "overdue_days": 0.0, "pdz": 0.0, "paid": 1554000.0, "doc": "", "direct": false}, {"year": 2026, "month": 3, "date": "2026-03-27", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "АК БАРС ПЕСТРЕЦЫ ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 014НО13666 DELROY традиционное", "ship": 79200.0, "debt": 79200.0, "overdue_days": 69.0, "pdz": 79200.0, "paid": 0.0, "doc": "", "direct": false}, {"year": 2026, "month": 3, "date": "2026-03-27", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "АК БАРС ПЕСТРЕЦЫ ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 014HO14226 ROME традиционное", "ship": 118800.0, "debt": 118800.0, "overdue_days": 69.0, "pdz": 118800.0, "paid": 0.0, "doc": "", "direct": false}, {"year": 2026, "month": 3, "date": "2026-03-30", "legal": "ДТ", "dept": "Кормление", "manager": "Айгуль", "client": "АГРОФИРМА НУР ООО", "supplier": "НЭТАФАРМ ООО", "group": "дезинфекция", "product": "DUTRIROCK пудра дезинфицирующая (20кг)", "ship": 189000.0, "debt": 0.0, "overdue_days": 0.0, "pdz": 0.0, "paid": 189000.0, "doc": "да", "direct": false}, {"year": 2026, "month": 3, "date": "2026-03-30", "legal": "ДТ", "dept": "Кормление", "manager": "Ильяс", "client": "ТАН СХПК", "supplier": "НЭТАФАРМ ООО", "group": "дезинфекция", "product": "DUTRIROCK пудра дезинфицирующая (20кг)", "ship": 219450.0, "debt": 0.0, "overdue_days": 0.0, "pdz": 0.0, "paid": 219450.0, "doc": "да", "direct": false}, {"year": 2026, "month": 3, "date": "2026-03-30", "legal": "ДТ", "dept": "Кормление", "manager": "Ильяс", "client": "ТАН СХПК", "supplier": "НЭТАФАРМ ООО", "group": "дезинфекция", "product": "DUTRION шип. таблетки, 2,5 кг - Средство дезинфицирующее (150л мат.р-р)", "ship": 142400.0, "debt": 0.0, "overdue_days": 0.0, "pdz": 0.0, "paid": 142400.0, "doc": "да", "direct": false}, {"year": 2026, "month": 3, "date": "2026-03-31", "legal": "ДТ", "dept": "Генетика", "manager": "Гюзель", "client": "СУРНАЙ ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 507HO15033 BOLD SEX сексированное", "ship": 240000.0, "debt": 90000.0, "overdue_days": 65.0, "pdz": 90000.0, "paid": 150000.0, "doc": "да", "direct": false}, {"year": 2026, "month": 3, "date": "2026-03-31", "legal": "ДТ", "dept": "Генетика", "manager": "Анастасия", "client": "ИП Глава крестьянского (фермерского) хозяйства Чурин Петр Иванович", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 014НО17453 SERRANO-ET традиционное", "ship": 100080.0, "debt": 0.0, "overdue_days": 0.0, "pdz": 0.0, "paid": 100080.0, "doc": "да", "direct": false}, {"year": 2026, "month": 3, "date": "2026-03-31", "legal": "ДТ", "dept": "Генетика", "manager": "Анастасия", "client": "ИП Глава крестьянского (фермерского) хозяйства Чурин Петр Иванович", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 014НО17260 HOEDOWN традиционное", "ship": 50040.0, "debt": 0.0, "overdue_days": 0.0, "pdz": 0.0, "paid": 50040.0, "doc": "да", "direct": false}, {"year": 2026, "month": 3, "date": "2026-03-31", "legal": "ДТ", "dept": "Генетика", "manager": "Анастасия", "client": "ИП Глава крестьянского (фермерского) хозяйства Чурин Петр Иванович", "supplier": "Прочее", "group": "доп.материалы", "product": "005563, Санитарная рубашка упаковка х 80шт", "ship": 8605.0, "debt": 0.0, "overdue_days": 0.0, "pdz": 0.0, "paid": 8605.0, "doc": "да", "direct": false}, {"year": 2026, "month": 3, "date": "2026-03-31", "legal": "ДТ", "dept": "Генетика", "manager": "Анастасия", "client": "ИП Глава крестьянского (фермерского) хозяйства Чурин Петр Иванович", "supplier": "Прочее", "group": "доп.материалы", "product": "Чехол непрорезанный для катетера осеменения КРС (20уп/2000кор)", "ship": 1400.0, "debt": 0.0, "overdue_days": 0.0, "pdz": 0.0, "paid": 1400.0, "doc": "да", "direct": false}, {"year": 2026, "month": 3, "date": "2026-03-31", "legal": "ДТ", "dept": "Генетика", "manager": "Анастасия", "client": "ИП Глава крестьянского (фермерского) хозяйства Чурин Петр Иванович", "supplier": "Прочее", "group": "доп.материалы", "product": "Перчатка И.О.", "ship": 1344.0, "debt": 0.0, "overdue_days": 0.0, "pdz": 0.0, "paid": 1344.0, "doc": "да", "direct": false}, {"year": 2026, "month": 4, "date": "2026-04-01", "legal": "ДТ", "dept": "Генетика", "manager": "Гюзель", "client": "СЕЛЬСКОХОЗЯЙСТВЕННОЕ ПРЕДПРИЯТИЕ СМАИЛЬ ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 507HO15255 PRIMEТIME-SEX сексированное", "ship": 144000.0, "debt": 51140.0, "overdue_days": 64.0, "pdz": 51140.0, "paid": 92860.0, "doc": "", "direct": false}, {"year": 2026, "month": 4, "date": "2026-04-01", "legal": "ДТ", "dept": "Генетика", "manager": "Гюзель", "client": "СЕЛЬСКОХОЗЯЙСТВЕННОЕ ПРЕДПРИЯТИЕ СМАИЛЬ ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 014НО13738 EUREKA традиционное", "ship": 52920.0, "debt": 52920.0, "overdue_days": 64.0, "pdz": 52920.0, "paid": 0.0, "doc": "", "direct": false}, {"year": 2026, "month": 4, "date": "2026-04-03", "legal": "РП", "dept": "Генетика", "manager": "Влад", "client": "АВГУСТ-МУСЛЮМ ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": NaN, "ship": 2960496.0, "debt": 0.0, "overdue_days": -19.0, "pdz": 0.0, "paid": 2960496.0, "doc": "", "direct": true}, {"year": 2026, "month": 4, "date": "2026-04-03", "legal": "РП", "dept": "Генетика", "manager": "Влад", "client": "АГРОФИРМА ИМ.ГАВРИЛОВА ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": NaN, "ship": 324940.0, "debt": 0.0, "overdue_days": 26.0, "pdz": 0.0, "paid": 324940.0, "doc": "", "direct": true}, {"year": 2026, "month": 4, "date": "2026-04-03", "legal": "РП", "dept": "Генетика", "manager": "Анастасия", "client": "КИШЕТ ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": NaN, "ship": 250200.0, "debt": 250200.0, "overdue_days": 46.0, "pdz": 250200.0, "paid": 0.0, "doc": "", "direct": true}, {"year": 2026, "month": 4, "date": "2026-04-03", "legal": "ДТ", "dept": "Генетика", "manager": "Анастасия", "client": "ИГЕНЧЕ ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 014HO18109 SHAFT традиционное", "ship": 299880.0, "debt": 173240.8, "overdue_days": 46.0, "pdz": 173240.8, "paid": 126639.2, "doc": "да", "direct": false}, {"year": 2026, "month": 4, "date": "2026-04-03", "legal": "ДТ", "dept": "Генетика", "manager": "Анастасия", "client": "ИГЕНЧЕ ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 014HO15962 LEGO традиционное", "ship": 35640.0, "debt": 35640.0, "overdue_days": 46.0, "pdz": 35640.0, "paid": 0.0, "doc": "да", "direct": false}, {"year": 2026, "month": 4, "date": "2026-04-03", "legal": "ДТ", "dept": "Генетика", "manager": "Анастасия", "client": "ИГЕНЧЕ ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 014HO15743 GALLA традиционное", "ship": 257004.0, "debt": 257004.0, "overdue_days": 46.0, "pdz": 257004.0, "paid": 0.0, "doc": "да", "direct": false}, {"year": 2026, "month": 4, "date": "2026-04-03", "legal": "ДТ", "dept": "Генетика", "manager": "Анастасия", "client": "ИГЕНЧЕ ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 507HO16416 HOLISTIC-SEX сексированное", "ship": 249000.0, "debt": 249000.0, "overdue_days": 46.0, "pdz": 249000.0, "paid": 0.0, "doc": "да", "direct": false}, {"year": 2026, "month": 4, "date": "2026-04-03", "legal": "ДТ", "dept": "Генетика", "manager": "Анастасия", "client": "ИГЕНЧЕ ООО", "supplier": "Прочее", "group": "доп.материалы", "product": "Чехол непрорезанный для катетера осеменения КРС (20уп/2000кор)", "ship": 7800.0, "debt": 7800.0, "overdue_days": 46.0, "pdz": 7800.0, "paid": 0.0, "doc": "да", "direct": false}, {"year": 2026, "month": 4, "date": "2026-04-03", "legal": "ДТ", "dept": "Генетика", "manager": "Анастасия", "client": "ИГЕНЧЕ ООО", "supplier": "Прочее", "group": "доп.материалы", "product": "Перчатка И.О.", "ship": 5376.0, "debt": 5376.0, "overdue_days": 46.0, "pdz": 5376.0, "paid": 0.0, "doc": "да", "direct": false}, {"year": 2026, "month": 4, "date": "2026-04-03", "legal": "ДТ", "dept": "Генетика", "manager": "Анастасия", "client": "ИГЕНЧЕ ООО", "supplier": "Прочее", "group": "доп.материалы", "product": "Перчатка ветеринарная с наплечником", "ship": 2562.0, "debt": 2562.0, "overdue_days": 46.0, "pdz": 2562.0, "paid": 0.0, "doc": "да", "direct": false}, {"year": 2026, "month": 4, "date": "2026-04-03", "legal": "ДТ", "dept": "Генетика", "manager": "Анастасия", "client": "ИГЕНЧЕ ООО", "supplier": "Прочее", "group": "азот", "product": "Азот жидкий ГОСТ 9293-74", "ship": 3060.0, "debt": 3060.0, "overdue_days": 46.0, "pdz": 3060.0, "paid": 0.0, "doc": "да", "direct": false}, {"year": 2026, "month": 4, "date": "2026-04-03", "legal": "ДТ", "dept": "Генетика", "manager": "Анастасия", "client": "АКТИВИСТ СХПК", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 014HO18109 SHAFT традиционное", "ship": 85680.0, "debt": 0.0, "overdue_days": -30.0, "pdz": 0.0, "paid": 85680.0, "doc": "да", "direct": false}, {"year": 2026, "month": 4, "date": "2026-04-03", "legal": "ДТ", "dept": "Генетика", "manager": "Анастасия", "client": "АКТИВИСТ СХПК", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 014HO15962 LEGO традиционное", "ship": 142560.0, "debt": 0.0, "overdue_days": -30.0, "pdz": 0.0, "paid": 142560.0, "doc": "да", "direct": false}, {"year": 2026, "month": 4, "date": "2026-04-03", "legal": "ДТ", "dept": "Генетика", "manager": "Анастасия", "client": "АКТИВИСТ СХПК", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 014HO15743 GALLA традиционное", "ship": 93456.0, "debt": 0.0, "overdue_days": -30.0, "pdz": 0.0, "paid": 93456.0, "doc": "да", "direct": false}, {"year": 2026, "month": 4, "date": "2026-04-03", "legal": "ДТ", "dept": "Генетика", "manager": "Анастасия", "client": "АКТИВИСТ СХПК", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 007HO17318 EPHEDRA традиционное", "ship": 34500.0, "debt": 0.0, "overdue_days": -30.0, "pdz": 0.0, "paid": 34500.0, "doc": "да", "direct": false}, {"year": 2026, "month": 4, "date": "2026-04-03", "legal": "ДТ", "dept": "Генетика", "manager": "Анастасия", "client": "АКТИВИСТ СХПК", "supplier": "Прочее", "group": "доп.материалы", "product": "Чехол непрорезанный для катетера осеменения КРС (20уп/2000кор)", "ship": 4200.0, "debt": 0.0, "overdue_days": -30.0, "pdz": 0.0, "paid": 4200.0, "doc": "да", "direct": false}, {"year": 2026, "month": 4, "date": "2026-04-03", "legal": "ДТ", "dept": "Генетика", "manager": "Анастасия", "client": "АКТИВИСТ СХПК", "supplier": "Прочее", "group": "доп.материалы", "product": "Перчатка И.О.", "ship": 2688.0, "debt": 0.0, "overdue_days": -30.0, "pdz": 0.0, "paid": 2688.0, "doc": "да", "direct": false}, {"year": 2026, "month": 4, "date": "2026-04-03", "legal": "ДТ", "dept": "Генетика", "manager": "Анастасия", "client": "АКТИВИСТ СХПК", "supplier": "Прочее", "group": "доп.материалы", "product": "Перчатка ветеринарная с наплечником", "ship": 2562.0, "debt": 0.0, "overdue_days": -30.0, "pdz": 0.0, "paid": 2562.0, "doc": "да", "direct": false}, {"year": 2026, "month": 4, "date": "2026-04-03", "legal": "ДТ", "dept": "Генетика", "manager": "Анастасия", "client": "АКТИВИСТ СХПК", "supplier": "Прочее", "group": "азот", "product": "Азот жидкий ГОСТ 9293-74", "ship": 3060.0, "debt": 0.0, "overdue_days": -30.0, "pdz": 0.0, "paid": 3060.0, "doc": "да", "direct": false}, {"year": 2026, "month": 4, "date": "2026-04-06", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "ПМК ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 007HO16215 CONSPIRACY традиционное", "ship": 71208.0, "debt": 0.0, "overdue_days": 49.0, "pdz": 0.0, "paid": 71208.0, "doc": "да", "direct": false}, {"year": 2026, "month": 4, "date": "2026-04-06", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "ПМК ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 007HO15127 SPECIAL традиционное", "ship": 86400.0, "debt": 0.0, "overdue_days": 49.0, "pdz": 0.0, "paid": 86400.0, "doc": "да", "direct": false}, {"year": 2026, "month": 4, "date": "2026-04-06", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "ПМК ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 007HO15840 CASABLANCA традиционное", "ship": 62856.0, "debt": 0.0, "overdue_days": 49.0, "pdz": 0.0, "paid": 62856.0, "doc": "да", "direct": false}, {"year": 2026, "month": 4, "date": "2026-04-06", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "ПМК ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 014НО13666 DELROY традиционное", "ship": 86400.0, "debt": 0.0, "overdue_days": 49.0, "pdz": 0.0, "paid": 86400.0, "doc": "да", "direct": false}, {"year": 2026, "month": 4, "date": "2026-04-06", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "ПМК ООО", "supplier": "РУСПЛЕМ", "group": "азот", "product": "Азот жидкий ГОСТ 9293-74", "ship": 9180.0, "debt": 0.0, "overdue_days": 49.0, "pdz": 0.0, "paid": 9180.0, "doc": "да", "direct": false}, {"year": 2026, "month": 4, "date": "2026-04-06", "legal": "ДТ", "dept": "Генетика", "manager": "Анастасия", "client": "ШАХТЕР ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 014НО17453 SERRANO-ET традиционное", "ship": 150120.0, "debt": 0.0, "overdue_days": -3.0, "pdz": 0.0, "paid": 150120.0, "doc": "да", "direct": false}, {"year": 2026, "month": 4, "date": "2026-04-06", "legal": "ДТ", "dept": "Генетика", "manager": "Анастасия", "client": "ШАХТЕР ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 014HO17672 SEWARD традиционное", "ship": 100080.0, "debt": 0.0, "overdue_days": -3.0, "pdz": 0.0, "paid": 100080.0, "doc": "да", "direct": false}, {"year": 2026, "month": 4, "date": "2026-04-06", "legal": "ДТ", "dept": "Генетика", "manager": "Анастасия", "client": "ШАХТЕР ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 007HO17434 PATRON традиционное", "ship": 100080.0, "debt": 0.0, "overdue_days": -3.0, "pdz": 0.0, "paid": 100080.0, "doc": "да", "direct": false}, {"year": 2026, "month": 4, "date": "2026-04-06", "legal": "ДТ", "dept": "Генетика", "manager": "Анастасия", "client": "ШАХТЕР ООО", "supplier": "Прочее", "group": "доп.материалы", "product": "005563, Санитарная рубашка упаковка х 80шт", "ship": 17210.0, "debt": 0.0, "overdue_days": -3.0, "pdz": 0.0, "paid": 17210.0, "doc": "да", "direct": false}, {"year": 2026, "month": 4, "date": "2026-04-06", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "АГРОФИРМА ИМ.ГАВРИЛОВА ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 014HO17587 QUINTAVIOUS традиционное", "ship": 220849.2, "debt": 170849.2, "overdue_days": 59.0, "pdz": 170849.2, "paid": 50000.0, "doc": "да", "direct": false}, {"year": 2026, "month": 4, "date": "2026-04-07", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "ЛЕЛЬВИЖ СПССК", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 507HO16469 TRUBADOR-SEX сексированное", "ship": 55000.0, "debt": 0.0, "overdue_days": 6.0, "pdz": 0.0, "paid": 55000.0, "doc": "", "direct": false}, {"year": 2026, "month": 4, "date": "2026-04-08", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "АГРОФИРМА ВОЗРОЖДЕНИЕ ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 014HO15926 VAN GOGH традиционное", "ship": 181656.0, "debt": 0.0, "overdue_days": 16.0, "pdz": 0.0, "paid": 181656.0, "doc": "да", "direct": false}, {"year": 2026, "month": 4, "date": "2026-04-08", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "АГРОФИРМА ВОЗРОЖДЕНИЕ ООО", "supplier": "Прочее", "group": "доп.материалы", "product": "005563, Санитарная рубашка упаковка х 80шт", "ship": 1721.0, "debt": 0.0, "overdue_days": 16.0, "pdz": 0.0, "paid": 1721.0, "doc": "да", "direct": false}, {"year": 2026, "month": 4, "date": "2026-04-08", "legal": "ДТ", "dept": "Генетика", "manager": "Гюзель", "client": "АГРОФИРМА КЫРЛАЙ ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 007HO14586 LYLE традиционное", "ship": 71050.0, "debt": 71050.0, "overdue_days": 41.0, "pdz": 71050.0, "paid": 0.0, "doc": "да", "direct": false}, {"year": 2026, "month": 4, "date": "2026-04-08", "legal": "ДТ", "dept": "Генетика", "manager": "Гюзель", "client": "АГРОФИРМА КЫРЛАЙ ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 014НО13738 EUREKA традиционное", "ship": 52920.0, "debt": 52920.0, "overdue_days": 41.0, "pdz": 52920.0, "paid": 0.0, "doc": "да", "direct": false}, {"year": 2026, "month": 4, "date": "2026-04-08", "legal": "ДТ", "dept": "Генетика", "manager": "Гюзель", "client": "АГРОФИРМА КЫРЛАЙ ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 507HO14436 BIG DOLLARS-SEX сексированное", "ship": 240000.0, "debt": 240000.0, "overdue_days": 41.0, "pdz": 240000.0, "paid": 0.0, "doc": "да", "direct": false}, {"year": 2026, "month": 4, "date": "2026-04-08", "legal": "ДТ", "dept": "Генетика", "manager": "Гюзель", "client": "АГРОФИРМА КЫРЛАЙ ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 507HO16651 SNAPPY-SEX сексированное", "ship": 250000.0, "debt": 250000.0, "overdue_days": 41.0, "pdz": 250000.0, "paid": 0.0, "doc": "да", "direct": false}, {"year": 2026, "month": 4, "date": "2026-04-08", "legal": "РП", "dept": "Генетика", "manager": "Анастасия", "client": "ТУКАЕВСКИЙ ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": NaN, "ship": 500400.0, "debt": 0.0, "overdue_days": -32.0, "pdz": 0.0, "paid": 500400.0, "doc": "", "direct": true}, {"year": 2026, "month": 4, "date": "2026-04-08", "legal": "РП", "dept": "Генетика", "manager": "Анастасия", "client": "ТУКАЕВСКИЙ ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": NaN, "ship": 507500.0, "debt": 0.0, "overdue_days": -32.0, "pdz": 0.0, "paid": 507500.0, "doc": "", "direct": true}, {"year": 2026, "month": 4, "date": "2026-04-08", "legal": "РП", "dept": "Генетика", "manager": "Анастасия", "client": "ШАХТЕР ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": NaN, "ship": 300240.0, "debt": 0.0, "overdue_days": -21.0, "pdz": 0.0, "paid": 300240.0, "doc": "", "direct": true}, {"year": 2026, "month": 4, "date": "2026-04-08", "legal": "РП", "dept": "Генетика", "manager": "Анастасия", "client": "ИП Глава крестьянского (фермерского) хозяйства Чурин Петр Иванович", "supplier": "РУСПЛЕМ", "group": "семя", "product": NaN, "ship": 50040.0, "debt": 0.0, "overdue_days": 37.0, "pdz": 0.0, "paid": 50040.0, "doc": "", "direct": true}, {"year": 2026, "month": 4, "date": "2026-04-08", "legal": "РП", "dept": "Генетика", "manager": "Влад", "client": "АГРОФИРМА ИМ.ГАВРИЛОВА ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": NaN, "ship": 652080.0, "debt": 337020.0, "overdue_days": 41.0, "pdz": 337020.0, "paid": 315060.0, "doc": "да", "direct": true}, {"year": 2026, "month": 4, "date": "2026-04-13", "legal": "ДТ", "dept": "Генетика", "manager": "Ильяс", "client": "АПК ПРОДОВОЛЬСТВЕННАЯ ПРОГРАММА ООО", "supplier": "Прочее", "group": "доп.материалы", "product": "005563, Санитарная рубашка упаковка х 80шт", "ship": 49909.0, "debt": 0.0, "overdue_days": 7.0, "pdz": 0.0, "paid": 49909.0, "doc": "да", "direct": false}, {"year": 2026, "month": 4, "date": "2026-04-13", "legal": "ДТ", "dept": "Генетика", "manager": "Ильяс", "client": "АПК ПРОДОВОЛЬСТВЕННАЯ ПРОГРАММА ООО", "supplier": "Прочее", "group": "доп.материалы", "product": "Чехол непрорезанный для катетера осеменения КРС (20уп/2000кор)", "ship": 30000.0, "debt": 0.0, "overdue_days": 7.0, "pdz": 0.0, "paid": 30000.0, "doc": "да", "direct": false}, {"year": 2026, "month": 4, "date": "2026-04-13", "legal": "ДТ", "dept": "Генетика", "manager": "Ильяс", "client": "АПК ПРОДОВОЛЬСТВЕННАЯ ПРОГРАММА ООО", "supplier": "Прочее", "group": "доп.материалы", "product": "Перчатки для осеменения VitaVet СУПЕРКОМФОРТ без наплечника, 25 мкм, 90 см, 100шт", "ship": 4116.0, "debt": 0.0, "overdue_days": 7.0, "pdz": 0.0, "paid": 4116.0, "doc": "да", "direct": false}, {"year": 2026, "month": 4, "date": "2026-04-13", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "ООО ИМЕНИ ТИМИРЯЗЕВА", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 507HO16469 TRUBADOR-SEX сексированное", "ship": 100000.0, "debt": 100000.0, "overdue_days": 52.0, "pdz": 100000.0, "paid": 0.0, "doc": "да", "direct": false}, {"year": 2026, "month": 4, "date": "2026-04-13", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "ООО ИМЕНИ ТИМИРЯЗЕВА", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 507HO16651 SNAPPY-SEX сексированное", "ship": 150000.0, "debt": 150000.0, "overdue_days": 52.0, "pdz": 150000.0, "paid": 0.0, "doc": "да", "direct": false}, {"year": 2026, "month": 4, "date": "2026-04-14", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "УРАЛ СХПК", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 007HO12999 BRENNAN традиционное", "ship": 279000.0, "debt": 0.0, "overdue_days": -1.0, "pdz": 0.0, "paid": 279000.0, "doc": "да", "direct": false}, {"year": 2026, "month": 4, "date": "2026-04-14", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "УРАЛ СХПК", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 007HO16012 SCUBA традиционное", "ship": 227200.0, "debt": 0.0, "overdue_days": -1.0, "pdz": 0.0, "paid": 227200.0, "doc": "да", "direct": false}, {"year": 2026, "month": 4, "date": "2026-04-14", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "УРАЛ СХПК", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 014HO15926 VAN GOGH традиционное", "ship": 168480.0, "debt": 0.0, "overdue_days": -1.0, "pdz": 0.0, "paid": 168480.0, "doc": "да", "direct": false}, {"year": 2026, "month": 4, "date": "2026-04-14", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "УРАЛ СХПК", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 014НО13738 EUREKA традиционное", "ship": 279000.0, "debt": 0.0, "overdue_days": -1.0, "pdz": 0.0, "paid": 279000.0, "doc": "да", "direct": false}, {"year": 2026, "month": 4, "date": "2026-04-17", "legal": "РП", "dept": "Генетика", "manager": "Влад", "client": "СХП МОЛОЧНОЕ ОБЪЕДИНЕНИЕ ВАМИН ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": NaN, "ship": 835784.4, "debt": 697864.4, "overdue_days": 32.0, "pdz": 697864.4, "paid": 137920.0, "doc": "", "direct": true}, {"year": 2026, "month": 4, "date": "2026-04-17", "legal": "РП", "dept": "Генетика", "manager": "Влад", "client": "СХП СЕВЕРНЫЙ ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": NaN, "ship": 1380592.4, "debt": 1380592.4, "overdue_days": 32.0, "pdz": 1380592.4, "paid": 0.0, "doc": "", "direct": true}, {"year": 2026, "month": 4, "date": "2026-04-17", "legal": "РП", "dept": "Генетика", "manager": "Влад", "client": "АГРОФИРМА ИМ.ГАВРИЛОВА ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": NaN, "ship": 281437.2, "debt": 281437.2, "overdue_days": 32.0, "pdz": 281437.2, "paid": 0.0, "doc": "", "direct": true}, {"year": 2026, "month": 4, "date": "2026-04-17", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "АГРОФИРМА ИМ.ГАВРИЛОВА ООО", "supplier": "Прочее", "group": "азот", "product": "Азот жидкий ГОСТ 9293-74", "ship": 4080.0, "debt": 4080.0, "overdue_days": 48.0, "pdz": 4080.0, "paid": 0.0, "doc": "да", "direct": false}, {"year": 2026, "month": 4, "date": "2026-04-17", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "СХП СЕВЕРНЫЙ ООО", "supplier": "Прочее", "group": "азот", "product": "Азот жидкий ГОСТ 9293-74", "ship": 10200.0, "debt": 10200.0, "overdue_days": 48.0, "pdz": 10200.0, "paid": 0.0, "doc": "да", "direct": false}, {"year": 2026, "month": 4, "date": "2026-04-17", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "СХП МОЛОЧНОЕ ОБЪЕДИНЕНИЕ ВАМИН ООО", "supplier": "Прочее", "group": "азот", "product": "Азот жидкий ГОСТ 9293-74", "ship": 3060.0, "debt": 0.0, "overdue_days": 4.0, "pdz": 0.0, "paid": 3060.0, "doc": "да", "direct": false}, {"year": 2026, "month": 4, "date": "2026-04-20", "legal": "ДТ", "dept": "Генетика", "manager": "Гюзель", "client": "УНЫШ ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 507HO14436 BIG DOLLARS-SEX сексированное", "ship": 144000.0, "debt": 86347.0, "overdue_days": 45.0, "pdz": 86347.0, "paid": 57653.0, "doc": "", "direct": false}, {"year": 2026, "month": 4, "date": "2026-04-20", "legal": "ДТ", "dept": "Генетика", "manager": "Гюзель", "client": "УНЫШ ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 507HO14846 ZACHERY-SEX сексированное", "ship": 96000.0, "debt": 96000.0, "overdue_days": 45.0, "pdz": 96000.0, "paid": 0.0, "doc": "", "direct": false}, {"year": 2026, "month": 4, "date": "2026-04-20", "legal": "ДТ", "dept": "Генетика", "manager": "Гюзель", "client": "УНЫШ ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 014HO14226 ROME традиционное", "ship": 60480.0, "debt": 60480.0, "overdue_days": 45.0, "pdz": 60480.0, "paid": 0.0, "doc": "", "direct": false}, {"year": 2026, "month": 4, "date": "2026-04-22", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "ЧИШМА ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 007HO17273 MARLON традиционное", "ship": 200880.0, "debt": 0.0, "overdue_days": 35.0, "pdz": 0.0, "paid": 200880.0, "doc": "да", "direct": false}, {"year": 2026, "month": 4, "date": "2026-04-22", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "ЧИШМА ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 014HO15926 VAN GOGH традиционное", "ship": 60480.0, "debt": 0.0, "overdue_days": 35.0, "pdz": 0.0, "paid": 60480.0, "doc": "да", "direct": false}, {"year": 2026, "month": 4, "date": "2026-04-22", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "ЗАИКОВСКИЙ ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 007HO15127 SPECIAL традиционное", "ship": 60480.0, "debt": 0.0, "overdue_days": -13.0, "pdz": 0.0, "paid": 60480.0, "doc": "да", "direct": false}, {"year": 2026, "month": 4, "date": "2026-04-22", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "ЗАИКОВСКИЙ ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 007HO15424 BANNER-P традиционное", "ship": 60480.0, "debt": 0.0, "overdue_days": -13.0, "pdz": 0.0, "paid": 60480.0, "doc": "да", "direct": false}, {"year": 2026, "month": 4, "date": "2026-04-22", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "ЗАИКОВСКИЙ ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 507HO16469 TRUBADOR-SEX сексированное", "ship": 110000.0, "debt": 0.0, "overdue_days": -13.0, "pdz": 0.0, "paid": 110000.0, "doc": "да", "direct": false}, {"year": 2026, "month": 4, "date": "2026-04-22", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "ЗАИКОВСКИЙ ООО", "supplier": "Прочее", "group": "азот", "product": "Азот жидкий ГОСТ 9293-74", "ship": 3060.0, "debt": 0.0, "overdue_days": -13.0, "pdz": 0.0, "paid": 3060.0, "doc": "да", "direct": false}, {"year": 2026, "month": 4, "date": "2026-04-27", "legal": "РП", "dept": "Генетика", "manager": "Анастасия", "client": "СХП ТАТАРСТАН ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": NaN, "ship": 1638936.0, "debt": 1638936.0, "overdue_days": 22.0, "pdz": 1638936.0, "paid": 0.0, "doc": "", "direct": true}, {"year": 2026, "month": 4, "date": "2026-04-27", "legal": "ДТ", "dept": "Генетика", "manager": "Анастасия", "client": "СХП ТАТАРСТАН ООО", "supplier": "Прочее", "group": "доп.материалы", "product": "Чехол непрорезанный для катетера осеменения КРС (20уп/2000кор)", "ship": 12000.0, "debt": 12000.0, "overdue_days": 22.0, "pdz": 12000.0, "paid": 0.0, "doc": "", "direct": false}, {"year": 2026, "month": 4, "date": "2026-04-27", "legal": "ДТ", "dept": "Генетика", "manager": "Анастасия", "client": "СХП ТАТАРСТАН ООО", "supplier": "Прочее", "group": "доп.материалы", "product": "Перчатки для осеменения VitaVet с наплечником, 25 мкм, 120 см, 50 шт", "ship": 6032.0, "debt": 6032.0, "overdue_days": 22.0, "pdz": 6032.0, "paid": 0.0, "doc": "", "direct": false}, {"year": 2026, "month": 4, "date": "2026-04-27", "legal": "ДТ", "dept": "Генетика", "manager": "Анастасия", "client": "СХП ТАТАРСТАН ООО", "supplier": "Прочее", "group": "доп.материалы", "product": "005563, Санитарная рубашка упаковка х 80шт", "ship": 10326.0, "debt": 10326.0, "overdue_days": 22.0, "pdz": 10326.0, "paid": 0.0, "doc": "", "direct": false}, {"year": 2026, "month": 4, "date": "2026-04-27", "legal": "ДТ", "dept": "Генетика", "manager": "Гюзель", "client": "САБА ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 014HO14225 JUDGE традиционное", "ship": 116620.0, "debt": 0.0, "overdue_days": -12.0, "pdz": 0.0, "paid": 116620.0, "doc": "", "direct": false}, {"year": 2026, "month": 4, "date": "2026-04-27", "legal": "ДТ", "dept": "Генетика", "manager": "Гюзель", "client": "САБА ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 007HO12999 BRENNAN традиционное", "ship": 43520.0, "debt": 0.0, "overdue_days": -12.0, "pdz": 0.0, "paid": 43520.0, "doc": "", "direct": false}, {"year": 2026, "month": 4, "date": "2026-04-27", "legal": "ДТ", "dept": "Генетика", "manager": "Гюзель", "client": "САБА ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 014НО13666 DELROY традиционное", "ship": 182920.0, "debt": 0.0, "overdue_days": -12.0, "pdz": 0.0, "paid": 182920.0, "doc": "", "direct": false}, {"year": 2026, "month": 4, "date": "2026-04-27", "legal": "ДТ", "dept": "Генетика", "manager": "Гюзель", "client": "САБА ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 007HO14739 MELROSE традиционное", "ship": 256700.0, "debt": 0.0, "overdue_days": 4.0, "pdz": 0.0, "paid": 256700.0, "doc": "", "direct": false}, {"year": 2026, "month": 4, "date": "2026-04-27", "legal": "ДТ", "dept": "Генетика", "manager": "Гюзель", "client": "САБА ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 014HO14226 ROME традиционное", "ship": 232560.0, "debt": 0.0, "overdue_days": 4.0, "pdz": 0.0, "paid": 232560.0, "doc": "", "direct": false}, {"year": 2026, "month": 4, "date": "2026-04-27", "legal": "ДТ", "dept": "Генетика", "manager": "Гюзель", "client": "САБА ООО", "supplier": "Прочее", "group": "азот", "product": "Азот жидкий ГОСТ 9293-74", "ship": 59500.0, "debt": 0.0, "overdue_days": 4.0, "pdz": 0.0, "paid": 59500.0, "doc": "", "direct": false}, {"year": 2026, "month": 5, "date": "2026-05-04", "legal": "ДТ", "dept": "Растениеводство", "manager": "Артем", "client": "ШЕРЬЯ ООО", "supplier": "ПЕРЕВОЗСКАЯ СЕМСТАНЦИЯ ОАО", "group": "травосмесь", "product": "Травосмесь (клевер луговой-50%, овсяница тростниковая-50%)", "ship": 1100000.0, "debt": 0.0, "overdue_days": 0.0, "pdz": 0.0, "paid": 1100000.0, "doc": "", "direct": false}, {"year": 2026, "month": 5, "date": "2026-05-04", "legal": "ДТ", "dept": "Генетика", "manager": "Гюзель", "client": "УНЫШ ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 007HO15127 SPECIAL традиционное", "ship": 40320.0, "debt": 40320.0, "overdue_days": 31.0, "pdz": 40320.0, "paid": 0.0, "doc": "", "direct": false}, {"year": 2026, "month": 5, "date": "2026-05-04", "legal": "ДТ", "dept": "Генетика", "manager": "Гюзель", "client": "УНЫШ ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 007HO15424 BANNER-P традиционное", "ship": 20160.0, "debt": 20160.0, "overdue_days": 31.0, "pdz": 20160.0, "paid": 0.0, "doc": "", "direct": false}, {"year": 2026, "month": 5, "date": "2026-05-04", "legal": "ДТ", "dept": "Генетика", "manager": "Гюзель", "client": "УНЫШ ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 007HO16607 SMOKE SIGNAL традиционное", "ship": 38115.0, "debt": 38115.0, "overdue_days": 31.0, "pdz": 38115.0, "paid": 0.0, "doc": "", "direct": false}, {"year": 2026, "month": 5, "date": "2026-05-04", "legal": "ДТ", "dept": "Генетика", "manager": "Гюзель", "client": "УНЫШ ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 014HO15833 DEADPOOL традиционное", "ship": 56940.0, "debt": 56940.0, "overdue_days": 31.0, "pdz": 56940.0, "paid": 0.0, "doc": "", "direct": false}, {"year": 2026, "month": 5, "date": "2026-05-04", "legal": "ДТ", "dept": "Генетика", "manager": "Гюзель", "client": "УНЫШ ООО", "supplier": "Прочее", "group": "доп.материалы", "product": "Перчатки для осеменения VitaVet СУПЕРКОМФОРТ без наплечника, 25 мкм, 90 см, 100шт", "ship": 914.0, "debt": 914.0, "overdue_days": 31.0, "pdz": 914.0, "paid": 0.0, "doc": "", "direct": false}, {"year": 2026, "month": 5, "date": "2026-05-04", "legal": "ДТ", "dept": "Генетика", "manager": "Гюзель", "client": "УНЫШ ООО", "supplier": "Прочее", "group": "доп.материалы", "product": "Чехол VitaVet для искусственного осеменения, защитный со вставкой, 44 см, d 4мм, 50 шт", "ship": 724.75, "debt": 724.75, "overdue_days": 31.0, "pdz": 724.75, "paid": 0.0, "doc": "", "direct": false}, {"year": 2026, "month": 5, "date": "2026-05-05", "legal": "РП", "dept": "Генетика", "manager": "Влад", "client": "ООО ИМЕНИ ТИМИРЯЗЕВА", "supplier": "РУСПЛЕМ", "group": "семя", "product": NaN, "ship": 192456.0, "debt": 192456.0, "overdue_days": 14.0, "pdz": 192456.0, "paid": 0.0, "doc": "", "direct": true}, {"year": 2026, "month": 5, "date": "2026-05-05", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "МОЛКО ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 007HO15522 REV традиционное", "ship": 312840.0, "debt": 0.0, "overdue_days": 1.0, "pdz": 0.0, "paid": 312840.0, "doc": "", "direct": false}, {"year": 2026, "month": 5, "date": "2026-05-05", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "МОЛКО ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 007HO16363 JAILBREAK традиционное", "ship": 352440.0, "debt": 0.0, "overdue_days": 1.0, "pdz": 0.0, "paid": 352440.0, "doc": "", "direct": false}, {"year": 2026, "month": 5, "date": "2026-05-05", "legal": "ДТ", "dept": "Растениеводство", "manager": "Артем", "client": "ВОСХОД СХК", "supplier": NaN, "group": "люцерна", "product": "Люцерна синяя", "ship": 1760000.0, "debt": 0.0, "overdue_days": 0.0, "pdz": 0.0, "paid": 1760000.0, "doc": "", "direct": false}, {"year": 2026, "month": 5, "date": "2026-05-05", "legal": "ДТ", "dept": "Растениеводство", "manager": "Артем", "client": "КРУПСКОЙ ООО СП", "supplier": "ЮПЛ", "group": "сорго-суданка", "product": "Сорго-суданский гибрид НУТРИТОП СТАР", "ship": 769996.78, "debt": 0.0, "overdue_days": 0.0, "pdz": 0.0, "paid": 769996.78, "doc": "", "direct": false}, {"year": 2026, "month": 5, "date": "2026-05-05", "legal": "ДТ", "dept": "Растениеводство", "manager": "Артем", "client": "ИП Глава крестьянского (фермерского) хозяйства Волков Юрий Васильевич", "supplier": "ЮПЛ", "group": "сорго-суданка", "product": "Сорго гибрид Джамбо Стар", "ship": 267000.0, "debt": 0.0, "overdue_days": 0.0, "pdz": 0.0, "paid": 267000.0, "doc": "", "direct": false}, {"year": 2026, "month": 5, "date": "2026-05-05", "legal": "ДТ", "dept": "Растениеводство", "manager": "Артем", "client": "УДМУРТИЯ СПК (КОЛХОЗ)", "supplier": "ЮПЛ", "group": "сорго-суданка", "product": "Сорго гибрид Джамбо Стар", "ship": 943400.0, "debt": 0.0, "overdue_days": 0.0, "pdz": 0.0, "paid": 943400.0, "doc": "", "direct": false}, {"year": 2026, "month": 5, "date": "2026-05-05", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "ПМК ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 507HO16469 TRUBADOR-SEX сексированное", "ship": 165000.0, "debt": 165000.0, "overdue_days": 30.0, "pdz": 165000.0, "paid": 0.0, "doc": "", "direct": false}, {"year": 2026, "month": 5, "date": "2026-05-05", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "ПМК ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 507HO16651 SNAPPY-SEX сексированное", "ship": 110000.0, "debt": 110000.0, "overdue_days": 30.0, "pdz": 110000.0, "paid": 0.0, "doc": "", "direct": false}, {"year": 2026, "month": 5, "date": "2026-05-05", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "ПМК ООО", "supplier": "Прочее", "group": "доп.материалы", "product": "Перчатки для осеменения VitaVet СУПЕРКОМФОРТ без наплечника, 25 мкм, 90 см, 100шт", "ship": 457.0, "debt": 457.0, "overdue_days": 30.0, "pdz": 457.0, "paid": 0.0, "doc": "", "direct": false}, {"year": 2026, "month": 5, "date": "2026-05-05", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "ПМК ООО", "supplier": "Прочее", "group": "азот", "product": "Азот жидкий ГОСТ 9293-74", "ship": 5100.0, "debt": 5100.0, "overdue_days": 30.0, "pdz": 5100.0, "paid": 0.0, "doc": "", "direct": false}, {"year": 2026, "month": 5, "date": "2026-05-05", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "ПМК ООО", "supplier": "Прочее", "group": "доп.материалы", "product": "Чехол VitaVet для искусственного осеменения, защитный со вставкой, 44 см, d 4мм, 50 шт", "ship": 144.95, "debt": 144.95, "overdue_days": 30.0, "pdz": 144.95, "paid": 0.0, "doc": "", "direct": false}, {"year": 2026, "month": 5, "date": "2026-05-05", "legal": "ДТ", "dept": "Растениеводство", "manager": "Артем", "client": "ЮЛДОШ ООО", "supplier": "ЮПЛ", "group": "люцерна", "product": "Семена люцерны, сорт Изумруда, Элита", "ship": 140000.0, "debt": 0.0, "overdue_days": 0.0, "pdz": 0.0, "paid": 140000.0, "doc": "", "direct": false}, {"year": 2026, "month": 5, "date": "2026-05-05", "legal": "ДТ", "dept": "Растениеводство", "manager": "Артем", "client": "ИП Глава крестьянского (фермерского) хозяйства Пчельников Валерий Петрович", "supplier": "ЮПЛ", "group": "сорго-суданка", "product": "Сорго гибрид Джамбо Стар", "ship": 890000.0, "debt": 0.0, "overdue_days": 0.0, "pdz": 0.0, "paid": 890000.0, "doc": "да", "direct": false}, {"year": 2026, "month": 5, "date": "2026-05-05", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "ЧИШМА ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 507HO16469 TRUBADOR-SEX сексированное", "ship": 55000.0, "debt": 0.0, "overdue_days": -6.0, "pdz": 0.0, "paid": 55000.0, "doc": "да", "direct": false}, {"year": 2026, "month": 5, "date": "2026-05-05", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "ЧИШМА ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 507HO16651 SNAPPY-SEX сексированное", "ship": 55000.0, "debt": 0.0, "overdue_days": -6.0, "pdz": 0.0, "paid": 55000.0, "doc": "да", "direct": false}, {"year": 2026, "month": 5, "date": "2026-05-05", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "ЧИШМА ООО", "supplier": "Прочее", "group": "доп.материалы", "product": "Перчатки для осеменения VitaVet СУПЕРКОМФОРТ без наплечника, 25 мкм, 90 см, 100шт", "ship": 457.0, "debt": 0.0, "overdue_days": -6.0, "pdz": 0.0, "paid": 457.0, "doc": "да", "direct": false}, {"year": 2026, "month": 5, "date": "2026-05-05", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "ЧИШМА ООО", "supplier": "Прочее", "group": "доп.материалы", "product": "Чехол VitaVet для искусственного осеменения, защитный со вставкой, 44 см, d 4мм, 50 шт", "ship": 144.95, "debt": 0.0, "overdue_days": -6.0, "pdz": 0.0, "paid": 144.95, "doc": "да", "direct": false}, {"year": 2026, "month": 5, "date": "2026-05-06", "legal": "ДТ", "dept": "Растениеводство", "manager": "Артем", "client": "ИП Глава крестьянского (фермерского) хозяйства Плотников Николай Васильевич", "supplier": "ЮПЛ", "group": "сорго-суданка", "product": "Сорго гибрид Джамбо Стар", "ship": 445000.0, "debt": 0.0, "overdue_days": 0.0, "pdz": 0.0, "paid": 445000.0, "doc": "да", "direct": false}, {"year": 2026, "month": 5, "date": "2026-05-06", "legal": "ДТ", "dept": "Растениеводство", "manager": "Артем", "client": "ИП Глава крестьянского (фермерского) хозяйства Александров Сергей Васильевич", "supplier": "ЮПЛ", "group": "сорго-суданка", "product": "Сорго гибрид Джамбо Стар", "ship": 284800.0, "debt": 0.0, "overdue_days": 0.0, "pdz": 0.0, "paid": 284800.0, "doc": "да", "direct": false}, {"year": 2026, "month": 5, "date": "2026-05-06", "legal": "ДТ", "dept": "Растениеводство", "manager": "Артем", "client": "НИВА СХК", "supplier": "ЮПЛ", "group": "сорго-суданка", "product": "Сорго гибрид Джамбо Стар", "ship": 338200.0, "debt": 0.0, "overdue_days": 1.0, "pdz": 0.0, "paid": 338200.0, "doc": "да", "direct": false}, {"year": 2026, "month": 5, "date": "2026-05-07", "legal": "ДТ", "dept": "Растениеводство", "manager": "Артем", "client": "УДМУРТИЯ СПК (КОЛХОЗ)", "supplier": "Баренбруг", "group": "люцерна", "product": "Травяная смесь Альфа Комби упак 225 кг", "ship": 301677.83, "debt": 0.0, "overdue_days": 0.0, "pdz": 0.0, "paid": 301677.83, "doc": "", "direct": false}, {"year": 2026, "month": 5, "date": "2026-05-07", "legal": "ДТ", "dept": "Растениеводство", "manager": "Артем", "client": "КОЛОС СХПК", "supplier": "Баренбруг", "group": "люцерна", "product": "Травяная смесь Альфа Баланс упак 500кг", "ship": 668018.74, "debt": 0.0, "overdue_days": 0.0, "pdz": 0.0, "paid": 668018.74, "doc": "", "direct": false}, {"year": 2026, "month": 5, "date": "2026-05-07", "legal": "ДТ", "dept": "Растениеводство", "manager": "Артем", "client": "КРАСНЫЙ ТРУЖЕНИК ООО", "supplier": "Баренбруг", "group": "травосмесь", "product": "Травяная смесь I упак 15 кг", "ship": 499213.16, "debt": 0.0, "overdue_days": 0.0, "pdz": 0.0, "paid": 499213.16, "doc": "да", "direct": false}, {"year": 2026, "month": 5, "date": "2026-05-12", "legal": "ДТ", "dept": "Генетика", "manager": "Анастасия", "client": "АГРОФИРМАРОДИНА ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 007HO15424 BANNER-P традиционное", "ship": 40320.0, "debt": 40320.0, "overdue_days": 7.0, "pdz": 40320.0, "paid": 0.0, "doc": "да", "direct": false}, {"year": 2026, "month": 5, "date": "2026-05-12", "legal": "ДТ", "dept": "Генетика", "manager": "Анастасия", "client": "АГРОФИРМАРОДИНА ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 014HO14226 ROME традиционное", "ship": 40320.0, "debt": 40320.0, "overdue_days": 7.0, "pdz": 40320.0, "paid": 0.0, "doc": "да", "direct": false}, {"year": 2026, "month": 5, "date": "2026-05-12", "legal": "ДТ", "dept": "Генетика", "manager": "Анастасия", "client": "АГРОФИРМАРОДИНА ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 014HO15833 DEADPOOL традиционное", "ship": 56160.0, "debt": 56160.0, "overdue_days": 7.0, "pdz": 56160.0, "paid": 0.0, "doc": "да", "direct": false}, {"year": 2026, "month": 5, "date": "2026-05-12", "legal": "ДТ", "dept": "Генетика", "manager": "Анастасия", "client": "АГРОФИРМАРОДИНА ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 014НО13666 DELROY традиционное", "ship": 40320.0, "debt": 40320.0, "overdue_days": 7.0, "pdz": 40320.0, "paid": 0.0, "doc": "да", "direct": false}, {"year": 2026, "month": 5, "date": "2026-05-12", "legal": "ДТ", "dept": "Генетика", "manager": "Анастасия", "client": "АГРОФИРМАРОДИНА ООО", "supplier": "Прочее", "group": "доп.материалы", "product": "Чехол непрорезанный для катетера осеменения КРС (20уп/2000кор)", "ship": 3000.0, "debt": 3000.0, "overdue_days": 7.0, "pdz": 3000.0, "paid": 0.0, "doc": "да", "direct": false}, {"year": 2026, "month": 5, "date": "2026-05-12", "legal": "ДТ", "dept": "Генетика", "manager": "Анастасия", "client": "АГРОФИРМАРОДИНА ООО", "supplier": "Прочее", "group": "доп.материалы", "product": "Перчатки для осеменения VitaVet СУПЕРКОМФОРТ без наплечника, 25 мкм, 90 см, 100шт", "ship": 913.56, "debt": 913.56, "overdue_days": 7.0, "pdz": 913.56, "paid": 0.0, "doc": "да", "direct": false}, {"year": 2026, "month": 5, "date": "2026-05-12", "legal": "ДТ", "dept": "Генетика", "manager": "Анастасия", "client": "АГРОФИРМАРОДИНА ООО", "supplier": "Прочее", "group": "доп.материалы", "product": "Перчатки для осеменения VitaVet с наплечником, 25 мкм, 120 см, 50 шт", "ship": 1039.48, "debt": 1039.48, "overdue_days": 7.0, "pdz": 1039.48, "paid": 0.0, "doc": "да", "direct": false}, {"year": 2026, "month": 5, "date": "2026-05-12", "legal": "ДТ", "dept": "Генетика", "manager": "Анастасия", "client": "АГРОФИРМАРОДИНА ООО", "supplier": "Прочее", "group": "доп.материалы", "product": "005563, Санитарная рубашка упаковка х 80шт", "ship": 3442.0, "debt": 3442.0, "overdue_days": 7.0, "pdz": 3442.0, "paid": 0.0, "doc": "да", "direct": false}, {"year": 2026, "month": 5, "date": "2026-05-12", "legal": "ДТ", "dept": "Генетика", "manager": "Анастасия", "client": "АГРОФИРМАРОДИНА ООО", "supplier": "Прочее", "group": "азот", "product": "Азот жидкий ГОСТ 9293-74", "ship": 1020.0, "debt": 1020.0, "overdue_days": 7.0, "pdz": 1020.0, "paid": 0.0, "doc": "да", "direct": false}, {"year": 2026, "month": 5, "date": "2026-05-04", "legal": "АФ", "dept": "ПАК", "manager": "Марат+Темур", "client": "ЗВЕЗДА СПК", "supplier": "АЙДИФАРМ ООО", "group": "ПАК", "product": "ПАК KeenTech Feed Кормораздатчик", "ship": 250000.0, "debt": 0.0, "overdue_days": 0.0, "pdz": 0.0, "paid": 250000.0, "doc": "", "direct": false}, {"year": 2026, "month": 5, "date": "2026-05-04", "legal": "АФ", "dept": "ПАК", "manager": "Марат+Темур", "client": "ЗВЕЗДА СПК", "supplier": "АЙДИФАРМ ООО", "group": "монтаж", "product": "Монтаж и пусконаладка", "ship": 25000.0, "debt": 0.0, "overdue_days": 0.0, "pdz": 0.0, "paid": 25000.0, "doc": "", "direct": false}, {"year": 2026, "month": 5, "date": "2026-05-04", "legal": "АФ", "dept": "ПАК", "manager": "Марат+Темур", "client": "ЗВЕЗДА СПК", "supplier": "АЙДИФАРМ ООО", "group": "монтаж", "product": "выезд технического специалиста", "ship": 12600.0, "debt": 0.0, "overdue_days": 0.0, "pdz": 0.0, "paid": 12600.0, "doc": "", "direct": false}, {"year": 2026, "month": 5, "date": "2026-05-15", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "СХП МОЛОЧНОЕ ОБЪЕДИНЕНИЕ ВАМИН ООО", "supplier": "Прочее", "group": "азот", "product": "Азот жидкий ГОСТ 9293-74", "ship": 3060.0, "debt": 0.0, "overdue_days": -24.0, "pdz": 0.0, "paid": 3060.0, "doc": "да", "direct": false}, {"year": 2026, "month": 5, "date": "2026-05-15", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "СХП МОЛОЧНОЕ ОБЪЕДИНЕНИЕ ВАМИН ООО", "supplier": "Прочее", "group": "доп.материалы", "product": "Перчатки для осеменения VitaVet СУПЕРКОМФОРТ без наплечника, 25 мкм, 90 см, 100шт", "ship": 3199.0, "debt": 0.0, "overdue_days": -24.0, "pdz": 0.0, "paid": 3199.0, "doc": "да", "direct": false}, {"year": 2026, "month": 5, "date": "2026-05-15", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "СХП МОЛОЧНОЕ ОБЪЕДИНЕНИЕ ВАМИН ООО", "supplier": "Прочее", "group": "доп.материалы", "product": "Чехол VitaVet для искусственного осеменения, защитный со вставкой, 44 см, d 4мм, 50 шт", "ship": 1884.35, "debt": 1884.35, "overdue_days": 20.0, "pdz": 1884.35, "paid": 0.0, "doc": "да", "direct": false}, {"year": 2026, "month": 5, "date": "2026-05-15", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "СХП СЕВЕРНЫЙ ООО", "supplier": "Прочее", "group": "азот", "product": "Азот жидкий ГОСТ 9293-74", "ship": 10200.0, "debt": 10200.0, "overdue_days": 20.0, "pdz": 10200.0, "paid": 0.0, "doc": "да", "direct": false}, {"year": 2026, "month": 5, "date": "2026-05-15", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "СХП СЕВЕРНЫЙ ООО", "supplier": "Прочее", "group": "доп.материалы", "product": "Чехол VitaVet для искусственного осеменения, защитный со вставкой, 44 см, d 4мм, 50 шт", "ship": 1159.6, "debt": 1159.6, "overdue_days": 20.0, "pdz": 1159.6, "paid": 0.0, "doc": "да", "direct": false}, {"year": 2026, "month": 5, "date": "2026-05-15", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "СХП СЕВЕРНЫЙ ООО", "supplier": "Прочее", "group": "доп.материалы", "product": "Перчатки для осеменения VitaVet СУПЕРКОМФОРТ без наплечника, 25 мкм, 90 см, 100шт", "ship": 1828.0, "debt": 1828.0, "overdue_days": 20.0, "pdz": 1828.0, "paid": 0.0, "doc": "да", "direct": false}, {"year": 2026, "month": 5, "date": "2026-05-18", "legal": "РП", "dept": "Генетика", "manager": "Влад", "client": "СХП МОЛОЧНОЕ ОБЪЕДИНЕНИЕ ВАМИН ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": NaN, "ship": 1782314.0, "debt": 1782314.0, "overdue_days": 1.0, "pdz": 1782314.0, "paid": 0.0, "doc": "да", "direct": true}, {"year": 2026, "month": 5, "date": "2026-05-18", "legal": "РП", "dept": "Генетика", "manager": "Влад", "client": "СХП СЕВЕРНЫЙ ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": NaN, "ship": 1304762.8, "debt": 1304762.8, "overdue_days": 1.0, "pdz": 1304762.8, "paid": 0.0, "doc": "да", "direct": true}, {"year": 2026, "month": 5, "date": "2026-05-18", "legal": "ДТ", "dept": "Растениеводство", "manager": "Артем", "client": "РУСЬ ООО", "supplier": "ВУДСТОК РУС ООО", "group": "кукуруза", "product": "Семена кукурузы Дорка МГТ партия H-RU-26-0226/03 фракция LF в обработке Форс Зеа", "ship": 4000600.0, "debt": 0.0, "overdue_days": 0.0, "pdz": 0.0, "paid": 4000600.0, "doc": "да", "direct": false}, {"year": 2026, "month": 5, "date": "2026-05-18", "legal": "ДТ", "dept": "Генетика", "manager": "Гюзель", "client": "БАШАК ООО", "supplier": "Прочее", "group": "доп.материалы", "product": "Азот жидкий ГОСТ 9293-74", "ship": 7200.0, "debt": 7200.0, "overdue_days": 1.0, "pdz": 7200.0, "paid": 0.0, "doc": "да", "direct": false}, {"year": 2026, "month": 5, "date": "2026-05-18", "legal": "ДТ", "dept": "Генетика", "manager": "Гюзель", "client": "БАШАК ООО", "supplier": "Прочее", "group": "доп.материалы", "product": "Перчатки для осеменения VitaVet СУПЕРКОМФОРТ без наплечника, 25 мкм, 90 см, 100шт", "ship": 1371.0, "debt": 1371.0, "overdue_days": 1.0, "pdz": 1371.0, "paid": 0.0, "doc": "да", "direct": false}, {"year": 2026, "month": 5, "date": "2026-05-18", "legal": "ДТ", "dept": "Генетика", "manager": "Гюзель", "client": "БАШАК ООО", "supplier": "Прочее", "group": "доп.материалы", "product": "Чехол VitaVet для искусственного осеменения, защитный со вставкой, 44 см, d 4мм, 50 шт", "ship": 724.75, "debt": 724.75, "overdue_days": 1.0, "pdz": 724.75, "paid": 0.0, "doc": "да", "direct": false}, {"year": 2026, "month": 5, "date": "2026-05-18", "legal": "ДТ", "dept": "Генетика", "manager": "Анастасия", "client": "АКТИВИСТ СХПК", "supplier": "Прочее", "group": "азот", "product": "Азот жидкий ГОСТ 9293-74", "ship": 5100.0, "debt": 5100.0, "overdue_days": 1.0, "pdz": 5100.0, "paid": 0.0, "doc": "", "direct": false}, {"year": 2026, "month": 5, "date": "2026-05-18", "legal": "ДТ", "dept": "Генетика", "manager": "Анастасия", "client": "АКТИВИСТ СХПК", "supplier": "Прочее", "group": "доп.материалы", "product": "Quicklock 2000 прибор для осеменения КРС", "ship": 29500.0, "debt": 29500.0, "overdue_days": 1.0, "pdz": 29500.0, "paid": 0.0, "doc": "", "direct": false}, {"year": 2026, "month": 5, "date": "2026-05-18", "legal": "ДТ", "dept": "Генетика", "manager": "Анастасия", "client": "АКТИВИСТ СХПК", "supplier": "Прочее", "group": "доп.материалы", "product": "Перчатки для осеменения VitaVet СУПЕРКОМФОРТ без наплечника, 25 мкм, 90 см, 100шт", "ship": 2285.0, "debt": 2285.0, "overdue_days": 1.0, "pdz": 2285.0, "paid": 0.0, "doc": "", "direct": false}, {"year": 2026, "month": 5, "date": "2026-05-18", "legal": "ДТ", "dept": "Генетика", "manager": "Анастасия", "client": "АКТИВИСТ СХПК", "supplier": "Прочее", "group": "доп.материалы", "product": "Перчатки для осеменения VitaVet с наплечником, 25 мкм, 120 см, 50 шт", "ship": 990.0, "debt": 990.0, "overdue_days": 1.0, "pdz": 990.0, "paid": 0.0, "doc": "", "direct": false}, {"year": 2026, "month": 5, "date": "2026-05-18", "legal": "ДТ", "dept": "Генетика", "manager": "Анастасия", "client": "АКТИВИСТ СХПК", "supplier": "Прочее", "group": "доп.материалы", "product": "Чехол VitaVet для искусственного осеменения, защитный со вставкой, 44 см, d 4мм, 50 шт", "ship": 1449.5, "debt": 1449.5, "overdue_days": 1.0, "pdz": 1449.5, "paid": 0.0, "doc": "", "direct": false}, {"year": 2026, "month": 5, "date": "2026-05-18", "legal": "РП", "dept": "Генетика", "manager": "Анастасия", "client": "АКТИВИСТ СХПК", "supplier": "РУСПЛЕМ", "group": "семя", "product": NaN, "ship": 391798.0, "debt": 391798.0, "overdue_days": 1.0, "pdz": 391798.0, "paid": 0.0, "doc": "", "direct": true}, {"year": 2026, "month": 5, "date": "2026-05-18", "legal": "РП", "dept": "Генетика", "manager": "Гюзель", "client": "БАШАК ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": NaN, "ship": 132264.0, "debt": 132264.0, "overdue_days": 1.0, "pdz": 132264.0, "paid": 0.0, "doc": "", "direct": true}, {"year": 2026, "month": 5, "date": "2026-05-18", "legal": "РП", "dept": "Генетика", "manager": "Анастасия", "client": "ТУКАЕВСКИЙ ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": NaN, "ship": 350000.0, "debt": 0.0, "overdue_days": -19.0, "pdz": 0.0, "paid": 350000.0, "doc": "", "direct": true}, {"year": 2026, "month": 5, "date": "2026-05-18", "legal": "РП", "dept": "Генетика", "manager": "Анастасия", "client": "ТУКАЕВСКИЙ ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": NaN, "ship": 1199570.0, "debt": 0.0, "overdue_days": -19.0, "pdz": 0.0, "paid": 1199570.0, "doc": "", "direct": true}, {"year": 2026, "month": 5, "date": "2026-05-18", "legal": "ДТ", "dept": "Растениеводство", "manager": "Артем", "client": "ИП Глава крестьянского (фермерского) хозяйства Волков Юрий Васильевич", "supplier": "Баренбруг", "group": "кукуруза", "product": "Кукуруза Полесский 212СВ", "ship": 204000.0, "debt": 0.0, "overdue_days": 0.0, "pdz": 0.0, "paid": 204000.0, "doc": "да", "direct": false}, {"year": 2026, "month": 5, "date": "2026-05-18", "legal": "ДТ", "dept": "Растениеводство", "manager": "Артем", "client": "ИП Глава крестьянского (фермерского) хозяйства Волков Юрий Васильевич", "supplier": "Баренбруг", "group": "кукуруза", "product": "Кукуруза Полесский 212СВ", "ship": 204000.0, "debt": 0.0, "overdue_days": 0.0, "pdz": 0.0, "paid": 204000.0, "doc": "да", "direct": false}, {"year": 2026, "month": 5, "date": "2026-05-18", "legal": "ДТ", "dept": "Растениеводство", "manager": "Артем", "client": "ЮЛДОШ ООО", "supplier": "Баренбруг", "group": "кукуруза", "product": "Кукуруза Полесский 212СВ", "ship": 816000.0, "debt": 0.0, "overdue_days": 0.0, "pdz": 0.0, "paid": 816000.0, "doc": "да", "direct": false}, {"year": 2026, "month": 5, "date": "2026-05-18", "legal": "ДТ", "dept": "Растениеводство", "manager": "Артем", "client": "ИП Глава крестьянского (фермерского) хозяйства Александров Сергей Васильевич", "supplier": "Баренбруг", "group": "кукуруза", "product": "Кукуруза Полесский 212СВ", "ship": 102000.0, "debt": 0.0, "overdue_days": 0.0, "pdz": 0.0, "paid": 102000.0, "doc": "да", "direct": false}, {"year": 2026, "month": 5, "date": "2026-05-18", "legal": "ДТ", "dept": "Растениеводство", "manager": "Айгуль", "client": "СОСНА ООО", "supplier": "Баренбруг", "group": "кукуруза", "product": "Кукуруза Полесский 212СВ", "ship": 680000.0, "debt": 0.0, "overdue_days": 0.0, "pdz": 0.0, "paid": 680000.0, "doc": "", "direct": false}, {"year": 2026, "month": 5, "date": "2026-05-19", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "УРАЛ СХПК", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 507HO16469 TRUBADOR-SEX сексированное", "ship": 88000.0, "debt": 0.0, "overdue_days": -11.0, "pdz": 0.0, "paid": 88000.0, "doc": "", "direct": false}, {"year": 2026, "month": 5, "date": "2026-05-19", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "УРАЛ СХПК", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 507HO16651 SNAPPY-SEX сексированное", "ship": 132000.0, "debt": 0.0, "overdue_days": -11.0, "pdz": 0.0, "paid": 132000.0, "doc": "", "direct": false}, {"year": 2026, "month": 5, "date": "2026-05-19", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "УРАЛ СХПК", "supplier": "Прочее", "group": "доп.материалы", "product": "Чехол VitaVet для искусственного осеменения, защитный со вставкой, 44 см, d 4мм, 50 шт", "ship": 289.9, "debt": 0.0, "overdue_days": -11.0, "pdz": 0.0, "paid": 289.9, "doc": "", "direct": false}, {"year": 2026, "month": 5, "date": "2026-05-19", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "УРАЛ СХПК", "supplier": "Прочее", "group": "доп.материалы", "product": "Перчатки для осеменения VitaVet СУПЕРКОМФОРТ без наплечника, 25 мкм, 90 см, 100шт", "ship": 457.0, "debt": 0.0, "overdue_days": -11.0, "pdz": 0.0, "paid": 457.0, "doc": "", "direct": false}, {"year": 2026, "month": 5, "date": "2026-05-19", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "ОРСИС-АГРО ООО", "supplier": "Прочее", "group": "доп.материалы", "product": "Перчатки для осеменения VitaVet СУПЕРКОМФОРТ без наплечника, 25 мкм, 90 см, 100шт", "ship": 2285.0, "debt": 2285.0, "overdue_days": 16.0, "pdz": 2285.0, "paid": 0.0, "doc": "", "direct": false}, {"year": 2026, "month": 5, "date": "2026-05-19", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "ОРСИС-АГРО ООО", "supplier": "Прочее", "group": "доп.материалы", "product": "Чехол VitaVet для искусственного осеменения, защитный со вставкой, 44 см, d 4мм, 50 шт", "ship": 1449.5, "debt": 1449.5, "overdue_days": 16.0, "pdz": 1449.5, "paid": 0.0, "doc": "", "direct": false}, {"year": 2026, "month": 5, "date": "2026-05-19", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "АГРОФИРМА ИМ.ГАВРИЛОВА ООО", "supplier": "Прочее", "group": "доп.материалы", "product": "Чехол VitaVet для искусственного осеменения, защитный со вставкой, 44 см, d 4мм, 50 шт", "ship": 579.8, "debt": 0.0, "overdue_days": 3.0, "pdz": 0.0, "paid": 579.8, "doc": "да", "direct": false}, {"year": 2026, "month": 5, "date": "2026-05-19", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "АГРОФИРМА ИМ.ГАВРИЛОВА ООО", "supplier": "Прочее", "group": "доп.материалы", "product": "Перчатки для осеменения VitaVet СУПЕРКОМФОРТ без наплечника, 25 мкм, 90 см, 100шт", "ship": 914.0, "debt": 0.0, "overdue_days": 3.0, "pdz": 0.0, "paid": 914.0, "doc": "да", "direct": false}, {"year": 2026, "month": 5, "date": "2026-05-19", "legal": "РП", "dept": "Генетика", "manager": "Влад", "client": "АГРОФИРМА ИМ.ГАВРИЛОВА ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": NaN, "ship": 275220.0, "debt": 275220.0, "overdue_days": 0.0, "pdz": 0.0, "paid": 0.0, "doc": "да", "direct": true}, {"year": 2026, "month": 5, "date": "2026-05-19", "legal": "РП", "dept": "Генетика", "manager": "Влад", "client": "ОРСИС-АГРО ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": NaN, "ship": 1659844.0, "debt": 1216644.0, "overdue_days": 0.0, "pdz": 0.0, "paid": 443200.0, "doc": "", "direct": true}, {"year": 2026, "month": 5, "date": "2026-05-19", "legal": "АФ", "dept": "ПАК", "manager": "Тимур", "client": "УДМУРТИЯ СПК (КОЛХОЗ)", "supplier": "АЙДИФАРМ ООО", "group": NaN, "product": "Мобильный ТСД UHF", "ship": 84000.0, "debt": 0.0, "overdue_days": 0.0, "pdz": 0.0, "paid": 84000.0, "doc": "", "direct": false}, {"year": 2026, "month": 5, "date": "2026-05-22", "legal": "ДТ", "dept": "Растениеводство", "manager": "Артем", "client": "КОЛХОЗ ИМ. ЛЕНИНА ООО", "supplier": "ТК Агросфера", "group": "люцерна", "product": "Семена люцерны ГОСТ", "ship": 1325000.0, "debt": 156500.0, "overdue_days": 27.0, "pdz": 156500.0, "paid": 1168500.0, "doc": "", "direct": false}, {"year": 2026, "month": 5, "date": "2026-05-22", "legal": "ДТ", "dept": "Генетика", "manager": NaN, "client": "БАШАК ООО", "supplier": NaN, "group": "услуги", "product": "Услуги по осеменению КРС", "ship": 46000.0, "debt": 46000.0, "overdue_days": 13.0, "pdz": 46000.0, "paid": 0.0, "doc": "да", "direct": false}, {"year": 2026, "month": 5, "date": "2026-05-22", "legal": "ДТ", "dept": "Кормление", "manager": "Ильяс", "client": "ПМК ООО", "supplier": "НЭТАФАРМ ООО", "group": "дезинфекция", "product": "DUTRIROCK пудра дезинфицирующая (20кг)", "ship": 250800.0, "debt": 0.0, "overdue_days": 0.0, "pdz": 0.0, "paid": 250800.0, "doc": "да", "direct": false}, {"year": 2026, "month": 5, "date": "2026-05-22", "legal": "ДТ", "dept": "Кормление", "manager": "Ильяс", "client": "ТАН СХПК", "supplier": "НЭТАФАРМ ООО", "group": "дезинфекция", "product": "DUTRIROCK пудра дезинфицирующая (20кг)", "ship": 250800.0, "debt": 0.0, "overdue_days": 4.0, "pdz": 0.0, "paid": 250800.0, "doc": "да", "direct": false}, {"year": 2026, "month": 5, "date": "2026-05-25", "legal": "ДТ", "dept": "Растениеводство", "manager": "Артем", "client": "АГРОСТАР-ТРЕЙД+ ООО", "supplier": "Баренбруг", "group": "травосмесь", "product": "Травяная смесь Продуктивность I упак 15 кг", "ship": 541548.24, "debt": 0.0, "overdue_days": 0.0, "pdz": 0.0, "paid": 541548.24, "doc": "да", "direct": false}, {"year": 2026, "month": 5, "date": "2026-05-25", "legal": "ДТ", "dept": "Растениеводство", "manager": "Артем", "client": "АГРОСТАР-ТРЕЙД+ ООО", "supplier": "Баренбруг", "group": "травосмесь", "product": "Травяная смесь Базис упак 850 кг", "ship": 515251.52, "debt": 0.0, "overdue_days": 0.0, "pdz": 0.0, "paid": 515251.52, "doc": "да", "direct": false}, {"year": 2026, "month": 5, "date": "2026-05-25", "legal": "ДТ", "dept": "Растениеводство", "manager": "Артем", "client": "АГРОСТАР-ТРЕЙД+ ООО", "supplier": "Баренбруг", "group": "травосмесь", "product": "Травяная смесь Базис упак 646 кг", "ship": 393925.0, "debt": 0.0, "overdue_days": 0.0, "pdz": 0.0, "paid": 393925.0, "doc": "да", "direct": false}, {"year": 2026, "month": 5, "date": "2026-05-29", "legal": "ДТ", "dept": "Растениеводство", "manager": "Артем", "client": "КОЛХОЗ ИМ. ЛЕНИНА ООО", "supplier": "СЕМЕНА ООО", "group": "люцерна", "product": "Семена люцерны, сорт Изумруда, Элита", "ship": 75000.0, "debt": 75000.0, "overdue_days": 20.0, "pdz": 75000.0, "paid": 0.0, "doc": "", "direct": false}, {"year": 2026, "month": 6, "date": "2026-06-01", "legal": "РП", "dept": "Генетика", "manager": "Анастасия", "client": "ШАХТЕР ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": NaN, "ship": 1050000.0, "debt": 1050000.0, "overdue_days": -13.0, "pdz": 0.0, "paid": 0.0, "doc": "", "direct": true}, {"year": 2026, "month": 6, "date": "2026-06-01", "legal": "РП", "dept": "Генетика", "manager": "Анастасия", "client": "ШАХТЕР ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": NaN, "ship": 1100880.0, "debt": 1100880.0, "overdue_days": -13.0, "pdz": 0.0, "paid": 0.0, "doc": "", "direct": true}, {"year": 2026, "month": 6, "date": "2026-06-01", "legal": "РП", "dept": "Генетика", "manager": "Влад", "client": "КАМСКИЙ БЕКОН ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": NaN, "ship": 5586042.0, "debt": 5586042.0, "overdue_days": -13.0, "pdz": 0.0, "paid": 0.0, "doc": "да", "direct": true}, {"year": 2026, "month": 6, "date": "2026-06-01", "legal": "РП", "dept": "Генетика", "manager": "Влад", "client": "ЯКТЫ ЮЛ ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": NaN, "ship": 251856.0, "debt": 251856.0, "overdue_days": -13.0, "pdz": 0.0, "paid": 0.0, "doc": "", "direct": true}, {"year": 2026, "month": 6, "date": "2026-06-01", "legal": "РП", "dept": "Генетика", "manager": "Влад", "client": "АГРОФИРМА ИМ.ГАВРИЛОВА ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": NaN, "ship": 568740.0, "debt": 568740.0, "overdue_days": -13.0, "pdz": 0.0, "paid": 0.0, "doc": "", "direct": true}, {"year": 2026, "month": 6, "date": "2026-06-01", "legal": "РП", "dept": "Генетика", "manager": "Влад", "client": "ТАН СХПК", "supplier": "РУСПЛЕМ", "group": "семя", "product": NaN, "ship": 296450.0, "debt": 296450.0, "overdue_days": -13.0, "pdz": 0.0, "paid": 0.0, "doc": "да", "direct": true}, {"year": 2026, "month": 6, "date": "2026-06-02", "legal": "АФ", "dept": "ПАК", "manager": "Марат", "client": "СХПК ИМ. ФАЙЗИ ГАЛИЕВА", "supplier": "АЙДИФАРМ ООО", "group": NaN, "product": "ПАК KeenTech (Component) Комбикорм", "ship": 200000.0, "debt": 200000.0, "overdue_days": 2.0, "pdz": 200000.0, "paid": 0.0, "doc": "", "direct": false}, {"year": 2026, "month": 6, "date": "2026-06-02", "legal": "ДТ", "dept": "Растениеводство", "manager": "Артем", "client": "ИП Глава крестьянского (фермерского) хозяйства Миннехузина Мария Николаевна", "supplier": "ЮПЛ", "group": "сорго-суданка", "product": "Сорго гибрид Джамбо Стар", "ship": 4200800.0, "debt": 800.0, "overdue_days": 16.0, "pdz": 800.0, "paid": 4200000.0, "doc": "да", "direct": false}, {"year": 2026, "month": 6, "date": "2026-06-02", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "ПМК ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 007JE01769 JX ARCHIE {5} традиционное", "ship": 46728.0, "debt": 46728.0, "overdue_days": 2.0, "pdz": 46728.0, "paid": 0.0, "doc": "", "direct": false}, {"year": 2026, "month": 6, "date": "2026-06-02", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "ПМК ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 007JE01990 BAR CAFE традиционное", "ship": 70092.0, "debt": 70092.0, "overdue_days": 2.0, "pdz": 70092.0, "paid": 0.0, "doc": "", "direct": false}, {"year": 2026, "month": 6, "date": "2026-06-02", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "ПМК ООО", "supplier": "Прочее", "group": "доп.материалы", "product": "Перчатки для осеменения VitaVet СУПЕРКОМФОРТ без наплечника, 25 мкм, 90 см, 100шт", "ship": 2285.0, "debt": 2285.0, "overdue_days": 2.0, "pdz": 2285.0, "paid": 0.0, "doc": "", "direct": false}, {"year": 2026, "month": 6, "date": "2026-06-02", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "ПМК ООО", "supplier": "Прочее", "group": "доп.материалы", "product": "Чехол VitaVet для искусственного осеменения, защитный со вставкой, 44 см, d 4мм, 50 шт", "ship": 1449.5, "debt": 1449.5, "overdue_days": 2.0, "pdz": 1449.5, "paid": 0.0, "doc": "", "direct": false}, {"year": 2026, "month": 6, "date": "2026-06-02", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "ПМК ООО", "supplier": "Прочее", "group": "азот", "product": "Азот жидкий ГОСТ 9293-74", "ship": 5100.0, "debt": 5100.0, "overdue_days": 2.0, "pdz": 5100.0, "paid": 0.0, "doc": "", "direct": false}, {"year": 2026, "month": 6, "date": "2026-06-02", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "ПМК ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 007HO15522 REV традиционное", "ship": 113760.0, "debt": 113760.0, "overdue_days": 2.0, "pdz": 113760.0, "paid": 0.0, "doc": "", "direct": false}, {"year": 2026, "month": 6, "date": "2026-06-02", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "ПМК ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 007HO15464 LUNAR традиционное", "ship": 128160.0, "debt": 128160.0, "overdue_days": 2.0, "pdz": 128160.0, "paid": 0.0, "doc": "", "direct": false}, {"year": 2026, "month": 6, "date": "2026-06-02", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "ЯКТЫ ЮЛ ООО", "supplier": "Прочее", "group": "доп.материалы", "product": "Перчатки для осеменения VitaVet СУПЕРКОМФОРТ без наплечника, 25 мкм, 90 см, 100шт", "ship": 1371.0, "debt": 1371.0, "overdue_days": 2.0, "pdz": 1371.0, "paid": 0.0, "doc": "", "direct": false}, {"year": 2026, "month": 6, "date": "2026-06-02", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "ЯКТЫ ЮЛ ООО", "supplier": "Прочее", "group": "доп.материалы", "product": "Чехол VitaVet для искусственного осеменения, защитный со вставкой, 44 см, d 4мм, 50 шт", "ship": 724.75, "debt": 724.75, "overdue_days": 2.0, "pdz": 724.75, "paid": 0.0, "doc": "", "direct": false}, {"year": 2026, "month": 6, "date": "2026-06-02", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "ЯКТЫ ЮЛ ООО", "supplier": "Прочее", "group": "азот", "product": "Азот жидкий ГОСТ 9293-74", "ship": 8160.0, "debt": 8160.0, "overdue_days": 2.0, "pdz": 8160.0, "paid": 0.0, "doc": "", "direct": false}, {"year": 2026, "month": 6, "date": "2026-06-02", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "АГРОФИРМА АЗНАКАЙ ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 014HO17690 STIX традиционное", "ship": 401544.0, "debt": 401544.0, "overdue_days": 2.0, "pdz": 401544.0, "paid": 0.0, "doc": "", "direct": false}, {"year": 2026, "month": 6, "date": "2026-06-02", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "АГРОФИРМА АЗНАКАЙ ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 007HO17679 MAYNARD традиционное", "ship": 332761.0, "debt": 332761.0, "overdue_days": 2.0, "pdz": 332761.0, "paid": 0.0, "doc": "", "direct": false}, {"year": 2026, "month": 6, "date": "2026-06-02", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "САРМАН ООО АФ", "supplier": "РУСПЛЕМ", "group": "семя", "product": "Семя быка 007НО17697 POWERED традиционное", "ship": 188922.24, "debt": 188922.24, "overdue_days": 2.0, "pdz": 188922.24, "paid": 0.0, "doc": "", "direct": false}, {"year": 2026, "month": 6, "date": "2026-06-05", "legal": "ДТ", "dept": "Генетика", "manager": "Влад", "client": "СХП МОЛОЧНОЕ ОБЪЕДИНЕНИЕ ВАМИН ООО", "supplier": "Прочее", "group": "азот", "product": "Азот жидкий ГОСТ 9293-74", "ship": 5100.0, "debt": 5100.0, "overdue_days": -1.0, "pdz": 0.0, "paid": 0.0, "doc": "", "direct": false}, {"year": 2026, "month": 6, "date": "2026-06-08", "legal": "ДТ", "dept": "Кормление", "manager": "Ильяс", "client": "ЧИШМА ООО", "supplier": "НОВАБИОТИК ООО", "group": "закваска", "product": "Кормовое средство СИЛТЕК", "ship": 330000.0, "debt": 330000.0, "overdue_days": -20.0, "pdz": 0.0, "paid": 0.0, "doc": "", "direct": false}, {"year": 2026, "month": 6, "date": "2026-06-10", "legal": "РП", "dept": "Генетика", "manager": "Анастасия", "client": "КИШЕТ ООО", "supplier": "РУСПЛЕМ", "group": "семя", "product": NaN, "ship": 450360.0, "debt": 450360.0, "overdue_days": -22.0, "pdz": 0.0, "paid": 0.0, "doc": "", "direct": false}];
+
+const fmt = n => Math.round(n).toLocaleString('ru-RU');
+const fmtM = n => (n/1e6).toLocaleString('ru-RU',{maximumFractionDigits:1}) + ' млн ₽';
+
+const PALETTE = {
+  ship: '#3C5A6B',
+  paid: '#4F7A52',
+  current: '#C99A2E',
+  pdz: '#A6432F',
+  dept: {
+    'Генетика':'#A6432F','Растениеводство':'#4F7A52','Кормление':'#C99A2E',
+    'Оборудование':'#3C5A6B','ПАК':'#8C8268'
+  },
+  manager: {
+    'Влад':'#3C5A6B','Артем':'#4F7A52','Анастасия':'#C99A2E','Ильяс':'#A6432F',
+    'Гюзель':'#8C8268','Айгуль':'#6B4F3C','Снежана':'#7A9E7E','Ильдар':'#B07D3C',
+    'Марат+Темур':'#5C7A8C','Марат':'#9C6B4F','Тимур':'#7D5C8C'
+  }
+};
+
+let KZDATA = [{"supplier": "ЦЕНТРПЛЕМ ООО", "debt": 14159036.59}, {"supplier": "БАРЕНБРУГ ООО", "debt": 3141500.0}, {"supplier": "ОЛЛТЕК ООО", "debt": 1513065.0}, {"supplier": "НОВАБИОТИК ООО", "debt": 250000.0}, {"supplier": "ЮПЛ ООО", "debt": 3997125.0}, {"supplier": "Агростар-Трейд+ ООО", "debt": 22400.0}, {"supplier": "РУСПЛЕМ ООО", "debt": 12977430.3}, {"supplier": "ТОО \"SoilMate\"", "debt": 2459656.0}, {"supplier": "ВЯТСКИЙ БЕРЕГ ООО", "debt": 1440000.0}, {"supplier": "КОНЦЕПТ СЕРВИС-К ООО", "debt": 17615.0}];
+
+/* ============================================================
+   GOOGLE SHEETS LIVE SYNC
+   Заполните GOOGLE_SHEET_ID, чтобы дашборд тянул данные из
+   Google Таблицы при каждом открытии (и раз в AUTO_REFRESH_MIN минут).
+   Таблица должна быть доступна по ссылке: "Любой пользователь
+   с ссылкой — Читатель". Если ID не указан или запрос не удался —
+   используется офлайн-снимок (данные, зашитые в файл выше).
+   ============================================================ */
+const SYNC_CONFIG = {
+  GOOGLE_SHEET_ID: '1VX0499K5e3gWbPQrNktYKCxUI_O4pxpqBPWAe8aYWi8',
+  MAIN_TAB: 'Данные',               // имя вкладки с детальными продажами
+  KZ_TAB: 'КЗ',                     // имя вкладки с кредиторкой (можно оставить пустым)
+  AUTO_REFRESH_MIN: 5                // 0 = без автообновления по таймеру
+};
+
+function gvizCsvUrl(sheetId, tabName){
+  return 'https://docs.google.com/spreadsheets/d/' + sheetId +
+    '/gviz/tq?tqx=out:csv&sheet=' + encodeURIComponent(tabName);
+}
+
+function parseRuNumber(v){
+  if(v === null || v === undefined || v === '') return 0;
+  if(typeof v === 'number') return v;
+  const n = parseFloat(String(v).replace(/\s/g,'').replace(',','.'));
+  return isNaN(n) ? 0 : n;
+}
+
+const DEPT_MAP = { 'генетика':'Генетика', 'кормление':'Кормление', 'растениеводство':'Растениеводство' };
+const SUPPLIER_MAP = { 'РУСПЛЕМ ООО':'РУСПЛЕМ', 'ЮПЛ ООО':'ЮПЛ' };
+const GROUP_MAP = { 'Азот':'азот', 'Люцерна':'люцерна' };
+function normDept(x){ x=(x||'').trim(); return DEPT_MAP[x] || x; }
+function normSupplier(x){ x=(x||'').trim(); return SUPPLIER_MAP[x] || x; }
+function normGroup(x){ x=(x||'').trim(); return GROUP_MAP[x] || x; }
+
+function mapSheetRow(row){
+  const dateStr = row['Дата']||'';
+  const yearFromDate = dateStr ? parseInt(dateStr.slice(0,4))||0 : 0;
+  const year = parseInt(row['Год'])||yearFromDate||0;
+  return {
+    year: year,
+    month: parseInt(row['Месяц'])||0,
+    date: dateStr,
+    legal: (row['Юр. Лицо']||'').trim(),
+    dept: normDept(row['Отдел']),
+    manager: (row['Менеджер']||'').trim(),
+    client: (row['Клиент']||'').trim(),
+    supplier: normSupplier(row['Поставщик товара']),
+    group: normGroup(row['группа товара']),
+    product: (row['Наименование продукта']||'').trim(),
+    ship: parseRuNumber(row['отгрузка (сумма реализации)']),
+    debt: parseRuNumber(row['сумма задолженности']),
+    overdue_days: parseRuNumber(row['дней просрочки']),
+    pdz: parseRuNumber(row['Сумма ПДЗ']),
+    paid: parseRuNumber(row['сумма оплаты']),
+    doc: (row['наличие документов']||'').trim(),
+    direct: !!(row['Прямые Договора по генетике'] && String(row['Прямые Договора по генетике']).trim())
+  };
+}
+
+function mapKzRow(row){
+  return { supplier: (row['Наименование поставщика']||'').trim(), debt: parseRuNumber(row['сумма долга']) };
+}
+
+function fetchCsv(url){
+  return fetch(url, {cache:'no-store'}).then(r=>{
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    return r.text();
+  }).then(text=>{
+    const parsed = Papa.parse(text, {header:true, skipEmptyLines:true});
+    if(parsed.errors && parsed.errors.length && !parsed.data.length){
+      throw new Error('CSV parse error');
+    }
+    return parsed.data;
+  });
+}
+
+function setSourceStatus(mode, text){
+  const pill = document.getElementById('source-pill');
+  const label = document.getElementById('source-text');
+  pill.className = 'source-pill ' + mode;
+  label.textContent = text;
+}
+
+let syncInFlight = false;
+async function syncFromGoogleSheets(){
+  if(!SYNC_CONFIG.GOOGLE_SHEET_ID){
+    setSourceStatus('offline', 'Офлайн-снимок (Google Sheet ID не задан в SYNC_CONFIG)');
+    return;
+  }
+  if(syncInFlight) return;
+  syncInFlight = true;
+  const btn = document.getElementById('refresh-btn');
+  if(btn) btn.disabled = true;
+  setSourceStatus('offline', 'Подключение к Google Таблице…');
+  try{
+    const mainRows = await fetchCsv(gvizCsvUrl(SYNC_CONFIG.GOOGLE_SHEET_ID, SYNC_CONFIG.MAIN_TAB));
+    const mapped = mainRows
+      .map(mapSheetRow)
+      .filter(r => r.client && r.client !== 'ИТОГО' && r.date);
+    if(!mapped.length) throw new Error('Нет строк после разбора таблицы');
+    RAW = mapped;
+
+    if(SYNC_CONFIG.KZ_TAB){
+      try{
+        const kzRows = await fetchCsv(gvizCsvUrl(SYNC_CONFIG.GOOGLE_SHEET_ID, SYNC_CONFIG.KZ_TAB));
+        const kzMapped = kzRows.map(mapKzRow).filter(r => r.supplier && r.supplier.toUpperCase() !== 'ИТОГО' && r.debt > 0);
+        if(kzMapped.length) KZDATA = kzMapped;
+      } catch(e){ /* КЗ необязательна — тихо оставляем текущий снимок */ }
+    }
+
+    populateFilterOptions();
+    renderAll();
+    const now = new Date();
+    setSourceStatus('live', 'Подключено к Google Таблице · обновлено ' + now.toLocaleTimeString('ru-RU'));
+  } catch(err){
+    console.error('Sync error:', err);
+    setSourceStatus('error', 'Не удалось обновить из Google Таблицы — показан офлайн-снимок (' + err.message + ')');
+  } finally {
+    syncInFlight = false;
+    if(btn) btn.disabled = false;
+  }
+}
+
+let state = { year:'2026', months: new Set([1,2,3,4,5,6,7,8,9,10,11,12]), legal:'all', dept:'all', manager:'all' };
+let charts = {};
+
+function uniqueSorted(arr, key){
+  return [...new Set(arr.map(r=>r[key]).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ru'));
+}
+
+function populateSelect(id, values){
+  const sel = document.getElementById(id);
+  const current = sel.value;
+  sel.innerHTML = '<option value="all">Все</option>';
+  values.forEach(v=>{
+    const opt = document.createElement('option');
+    opt.value = v; opt.textContent = v;
+    sel.appendChild(opt);
+  });
+  if(values.includes(current)) sel.value = current;
+}
+
+function populateFilterOptions(){
+  const years = [...new Set(RAW.map(r=>r.year).filter(y=>y>0))].sort((a,b)=>b-a).map(String);
+  populateSelect('f-year', years);
+  // default to 2026 if available, else latest year
+  const sel = document.getElementById('f-year');
+  if(years.includes('2026')) sel.value = '2026';
+  else if(years.length) sel.value = years[0];
+  state.year = sel.value;
+
+  populateSelect('f-legal', uniqueSorted(RAW,'legal'));
+  populateSelect('f-dept', uniqueSorted(RAW,'dept'));
+  populateSelect('f-manager', uniqueSorted(RAW,'manager'));
+}
+
+function buildMonthPills(){
+  const wrap = document.getElementById('month-pills');
+  const names = {1:'Янв',2:'Фев',3:'Мар',4:'Апр',5:'Май',6:'Июн',7:'Июл',8:'Авг',9:'Сен',10:'Окт',11:'Ноя',12:'Дек'};
+  for(let m=1;m<=12;m++){
+    const b = document.createElement('button');
+    b.className = 'pill active';
+    b.textContent = names[m];
+    b.dataset.month = m;
+    b.addEventListener('click', ()=>{
+      if(state.months.has(m)){ state.months.delete(m); b.classList.remove('active'); }
+      else { state.months.add(m); b.classList.add('active'); }
+      renderAll();
+    });
+    wrap.appendChild(b);
+  }
+}
+
+function applyFilters(){
+  return RAW.filter(r =>
+    (state.year==='all' || String(r.year)===state.year) &&
+    state.months.has(r.month) &&
+    (state.legal==='all' || r.legal===state.legal) &&
+    (state.dept==='all' || r.dept===state.dept) &&
+    (state.manager==='all' || r.manager===state.manager)
+  );
+}
+
+function applyFiltersCustom(opts){
+  opts = opts || {};
+  return RAW.filter(r =>
+    (state.year==='all' || String(r.year)===state.year) &&
+    state.months.has(r.month) &&
+    (state.legal==='all' || r.legal===state.legal) &&
+    (opts.ignoreDept || state.dept==='all' || r.dept===state.dept) &&
+    (opts.ignoreManager || state.manager==='all' || r.manager===state.manager)
+  );
+}
+
+function sumBy(arr, key){ return arr.reduce((s,r)=>s+ (Number(r[key])||0), 0); }
+
+function groupTop(arr, keyField, valField, topN){
+  const m = new Map();
+  arr.forEach(r=>{
+    const k = r[keyField];
+    if(!k) return;
+    m.set(k, (m.get(k)||0) + (Number(r[valField])||0));
+  });
+  return [...m.entries()].sort((a,b)=>b[1]-a[1]).slice(0, topN);
+}
+
+function groupAll(arr, keyField, valField){
+  const m = new Map();
+  arr.forEach(r=>{
+    const k = r[keyField];
+    if(!k) return;
+    m.set(k, (m.get(k)||0) + (Number(r[valField])||0));
+  });
+  return [...m.entries()].sort((a,b)=>b[1]-a[1]);
+}
+
+function destroy(id){ if(charts[id]){ charts[id].destroy(); } }
+
+function barChart(id, labels, data, color, horizontal=true){
+  destroy(id);
+  const ctx = document.getElementById(id).getContext('2d');
+  charts[id] = new Chart(ctx, {
+    type:'bar',
+    data:{ labels, datasets:[{ data, backgroundColor: Array.isArray(color)?color:color, borderRadius:5, maxBarThickness:26 }]},
+    options:{
+      indexAxis: horizontal ? 'y' : 'x',
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label: c => ' ' + fmt(c.parsed.x ?? c.parsed.y) + ' ₽' } } },
+      scales:{
+        x:{ grid:{ color:'#E4E2D4' }, ticks:{ font:{family:'IBM Plex Mono', size:11}, callback:v=>(v/1e6)+'M' } },
+        y:{ grid:{ display:false }, ticks:{ font:{family:'Inter', size:12} } }
+      }
+    }
+  });
+}
+
+function renderMonthly(filtered){
+  const months = [...state.months].sort((a,b)=>a-b);
+  const names = {1:'Янв',2:'Фев',3:'Мар',4:'Апр',5:'Май',6:'Июн'};
+  const ship = months.map(m=>sumBy(filtered.filter(r=>r.month===m),'ship'));
+  const paid = months.map(m=>sumBy(filtered.filter(r=>r.month===m),'paid'));
+  destroy('chart-monthly');
+  const ctx = document.getElementById('chart-monthly').getContext('2d');
+  charts['chart-monthly'] = new Chart(ctx, {
+    data:{
+      labels: months.map(m=>names[m]),
+      datasets:[
+        { type:'bar', label:'Отгрузка', data:ship, backgroundColor:PALETTE.ship, borderRadius:6, maxBarThickness:46 },
+        { type:'line', label:'Оплата', data:paid, borderColor:PALETTE.current, backgroundColor:PALETTE.current, tension:.3, pointRadius:4, borderWidth:2.5 }
+      ]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ position:'top', labels:{ font:{family:'Inter', size:12} } },
+        tooltip:{ callbacks:{ label: c => ' '+c.dataset.label+': '+fmt(c.parsed.y)+' ₽' } } },
+      scales:{
+        x:{ grid:{display:false}, ticks:{font:{family:'IBM Plex Mono', size:12}} },
+        y:{ grid:{color:'#E4E2D4'}, ticks:{ font:{family:'IBM Plex Mono', size:11}, callback:v=>(v/1e6)+'M' } }
+      }
+    }
+  });
+}
+
+function renderRanked(canvasId, tableId, pairs, color, chartTopN){
+  const total = pairs.reduce((s,p)=>s+p[1],0);
+  const chartData = pairs.slice(0, chartTopN);
+  if(chartData.length){
+    barChart(canvasId, chartData.map(p=>p[0]), chartData.map(p=>p[1]), color);
+  } else {
+    destroy(canvasId);
+  }
+  const tbody = document.getElementById(tableId);
+  tbody.innerHTML = pairs.map((p,i)=>`<tr>
+      <td>${i+1}</td>
+      <td class="name">${p[0]}</td>
+      <td class="num">${fmt(p[1])} ₽</td>
+      <td class="num">${total>0?(p[1]/total*100).toFixed(1):'0.0'}%</td>
+    </tr>`).join('') || '<tr><td colspan="4" style="text-align:center;color:var(--muted);">Нет данных по выбранным фильтрам</td></tr>';
+  return total;
+}
+
+function renderStackedByMonth(canvasId, legendTableId, dataset, groupField, palette){
+  const months = [...state.months].sort((a,b)=>a-b);
+  const names = {1:'Янв',2:'Фев',3:'Мар',4:'Апр',5:'Май',6:'Июн'};
+
+  const totals = {};
+  const byGroupMonth = {};
+  dataset.forEach(r=>{
+    const g = r[groupField];
+    if(!g) return;
+    const v = Number(r.ship)||0;
+    totals[g] = (totals[g]||0) + v;
+    if(!byGroupMonth[g]) byGroupMonth[g] = {};
+    byGroupMonth[g][r.month] = (byGroupMonth[g][r.month]||0) + v;
+  });
+  const sortedGroups = Object.keys(totals).sort((a,b)=>totals[b]-totals[a]);
+
+  destroy(canvasId);
+  const ctx = document.getElementById(canvasId).getContext('2d');
+  charts[canvasId] = new Chart(ctx, {
+    type:'bar',
+    data:{
+      labels: months.map(m=>names[m]),
+      datasets: sortedGroups.map(g=>({
+        label: g,
+        data: months.map(m => (byGroupMonth[g] && byGroupMonth[g][m]) || 0),
+        backgroundColor: palette[g] || '#8C8268',
+        borderRadius:3, maxBarThickness:50
+      }))
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{
+        legend:{ display:true, position:'bottom', labels:{ font:{family:'Inter', size:11}, boxWidth:10, padding:10 } },
+        tooltip:{ callbacks:{ label: c => ' '+c.dataset.label+': '+fmt(c.parsed.y)+' ₽' } }
+      },
+      scales:{
+        x:{ stacked:true, grid:{display:false}, ticks:{font:{family:'IBM Plex Mono', size:12}} },
+        y:{ stacked:true, grid:{color:'#E4E2D4'}, ticks:{ font:{family:'IBM Plex Mono', size:11}, callback:v=>(v/1e6)+'M' } }
+      }
+    }
+  });
+
+  const grand = Object.values(totals).reduce((s,v)=>s+v,0);
+  const first = months[0], last = months[months.length-1];
+  const tbody = document.getElementById(legendTableId);
+  tbody.innerHTML = sortedGroups.map(g=>{
+    const v0 = (byGroupMonth[g] && byGroupMonth[g][first]) || 0;
+    const v1 = (byGroupMonth[g] && byGroupMonth[g][last]) || 0;
+    let trend = '<span style="color:var(--muted)">—</span>';
+    if(months.length>1){
+      if(v0>0){
+        const pct = ((v1-v0)/v0*100);
+        trend = pct>=0 ? `<span class="trend-up">▲ ${pct.toFixed(0)}%</span>` : `<span class="trend-down">▼ ${Math.abs(pct).toFixed(0)}%</span>`;
+      } else if(v1>0){
+        trend = `<span class="trend-up">▲ новый</span>`;
+      }
+    }
+    return `<tr>
+      <td class="name"><span class="dot-sw" style="background:${palette[g]||'#8C8268'}"></span>${g}</td>
+      <td class="num">${fmt(totals[g])} ₽</td>
+      <td class="num">${grand>0?(totals[g]/grand*100).toFixed(1):'0.0'}%</td>
+      <td class="num">${trend}</td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="4" style="text-align:center;color:var(--muted);">Нет данных по выбранным фильтрам</td></tr>';
+}
+
+function renderAll(){
+  const filtered = applyFilters();
+
+  // KPIs
+  const ship = sumBy(filtered,'ship');
+  const paid = sumBy(filtered,'paid');
+  const pdz = sumBy(filtered,'pdz');
+  const debtRaw = sumBy(filtered,'debt');
+  const current = Math.max(debtRaw - pdz, 0);
+
+  document.getElementById('kpi-ship').textContent = fmt(ship)+' ₽';
+  document.getElementById('kpi-paid').textContent = fmt(paid)+' ₽';
+  document.getElementById('kpi-paid-pct').textContent = ship>0 ? (paid/ship*100).toFixed(1)+'% от отгрузки' : '—';
+  document.getElementById('kpi-debt-total').textContent = fmt(debtRaw)+' ₽';
+  document.getElementById('kpi-debt-total-pct').textContent = ship>0 ? (debtRaw/ship*100).toFixed(1)+'% от отгрузки' : '—';
+  document.getElementById('kpi-current').textContent = fmt(current)+' ₽';
+  document.getElementById('kpi-pdz').textContent = fmt(pdz)+' ₽';
+  document.getElementById('kpi-pdz-pct').textContent = ship>0 ? (pdz/ship*100).toFixed(1)+'% от отгрузки' : '—';
+
+  // Harvest bar
+  const total = Math.max(ship, paid+current+pdz, 1);
+  document.getElementById('seg-paid').style.width = (paid/total*100)+'%';
+  document.getElementById('seg-current').style.width = (current/total*100)+'%';
+  document.getElementById('seg-pdz').style.width = (pdz/total*100)+'%';
+  document.getElementById('seg-paid').textContent = paid/total>0.08 ? (paid/total*100).toFixed(0)+'%' : '';
+  document.getElementById('seg-current').textContent = current/total>0.08 ? (current/total*100).toFixed(0)+'%' : '';
+  document.getElementById('seg-pdz').textContent = pdz/total>0.08 ? (pdz/total*100).toFixed(0)+'%' : '';
+  document.getElementById('harvest-total').textContent = 'Всего: '+fmtM(ship);
+
+  // Monthly
+  renderMonthly(filtered);
+
+  // Dept
+  const deptAgg = groupTop(filtered,'dept','ship',10);
+  barChart('chart-dept', deptAgg.map(d=>d[0]), deptAgg.map(d=>d[1]), deptAgg.map(d=>PALETTE.dept[d[0]]||PALETTE.ship));
+
+  // PDZ by dept
+  const pdzAgg = groupTop(filtered,'dept','pdz',10).filter(d=>d[1]>0);
+  if(pdzAgg.length){
+    barChart('chart-pdz-dept', pdzAgg.map(d=>d[0]), pdzAgg.map(d=>d[1]), pdzAgg.map(d=>PALETTE.dept[d[0]]||PALETTE.pdz));
+  } else {
+    destroy('chart-pdz-dept');
+  }
+
+  // Manager
+  const mgrAgg = groupTop(filtered,'manager','ship',8);
+  barChart('chart-manager', mgrAgg.map(d=>d[0]), mgrAgg.map(d=>d[1]), PALETTE.paid);
+
+  // Product groups
+  const prodAgg = groupTop(filtered,'group','ship',10);
+  barChart('chart-product', prodAgg.map(d=>d[0]), prodAgg.map(d=>d[1]), PALETTE.current);
+
+  // Clients
+  const cliAgg = groupTop(filtered,'client','ship',10);
+  barChart('chart-client', cliAgg.map(d=>d[0]), cliAgg.map(d=>d[1]), PALETTE.ship);
+
+  // Overdue table
+  const byClient = new Map();
+  filtered.forEach(r=>{
+    if(!r.client) return;
+    if(!byClient.has(r.client)) byClient.set(r.client, {client:r.client, dept:r.dept, manager:r.manager, ship:0, pdz:0, maxOverdue:0});
+    const o = byClient.get(r.client);
+    o.ship += Number(r.ship)||0;
+    o.pdz += Number(r.pdz)||0;
+    o.maxOverdue = Math.max(o.maxOverdue, Number(r.overdue_days)||0);
+  });
+  const overdueRows = [...byClient.values()].filter(o=>o.pdz>0).sort((a,b)=>b.pdz-a.pdz).slice(0,15);
+  const tbody = document.getElementById('overdue-table');
+  tbody.innerHTML = overdueRows.map(o=>{
+    const risk = o.maxOverdue>60 ? ['high','Высокий'] : o.maxOverdue>20 ? ['mid','Средний'] : ['low','Низкий'];
+    return `<tr>
+      <td class="name">${o.client}</td>
+      <td class="name">${o.dept}</td>
+      <td class="name">${o.manager}</td>
+      <td class="num">${fmt(o.ship)} ₽</td>
+      <td class="num">${fmt(o.pdz)} ₽</td>
+      <td class="num">${o.maxOverdue}</td>
+      <td><span class="badge-risk ${risk[0]}">${risk[1]}</span></td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="7" style="text-align:center;color:var(--muted);">Нет данных по выбранным фильтрам</td></tr>';
+
+  // Manager / Dept dynamics by month (ignore own dimension's filter so the full breakdown stays visible)
+  renderStackedByMonth('chart-manager-month', 'manager-month-legend', applyFiltersCustom({ignoreManager:true}), 'manager', PALETTE.manager);
+  renderStackedByMonth('chart-dept-month', 'dept-month-legend', applyFiltersCustom({ignoreDept:true}), 'dept', PALETTE.dept);
+
+  // ДЗ — receivables ranking (respects current filters)
+  // ДЗ основные договора — строки без признака прямого договора генетики
+  const dzPairs = groupAll(filtered.filter(r=>!r.direct), 'client', 'debt').filter(p=>p[1]>0);
+  document.getElementById('dz-total').textContent = 'Всего: '+fmtM(dzPairs.reduce((s,p)=>s+p[1],0));
+  renderRanked('chart-dz', 'dz-table', dzPairs, PALETTE.pdz, 15);
+
+  // ДЗ прямые договора — subset where direct genetics contract flag is set
+  const dzDirectPairs = groupAll(filtered.filter(r=>r.direct), 'client', 'debt').filter(p=>p[1]>0);
+  document.getElementById('dzdirect-total').textContent = 'Всего: '+fmtM(dzDirectPairs.reduce((s,p)=>s+p[1],0));
+  renderRanked('chart-dz-direct', 'dzdirect-table', dzDirectPairs, PALETTE.ship, 13);
+
+  // КЗ — payables to suppliers, static snapshot (own sheet, not tied to monthly sales filters)
+  const kzPairs = KZDATA.map(d=>[d.supplier, d.debt]).sort((a,b)=>b[1]-a[1]);
+  document.getElementById('kz-total').textContent = 'Всего: '+fmtM(kzPairs.reduce((s,p)=>s+p[1],0));
+  renderRanked('chart-kz', 'kz-table', kzPairs, PALETTE.current, 11);
+}
+
+function init(){
+  buildMonthPills();
+  populateFilterOptions();
+
+  document.getElementById('f-year').addEventListener('change', e=>{ state.year = e.target.value; renderAll(); });
+  document.getElementById('f-legal').addEventListener('change', e=>{ state.legal = e.target.value; renderAll(); });
+  document.getElementById('f-dept').addEventListener('change', e=>{ state.dept = e.target.value; renderAll(); });
+  document.getElementById('f-manager').addEventListener('change', e=>{ state.manager = e.target.value; renderAll(); });
+  document.getElementById('reset-btn').addEventListener('click', ()=>{
+    const years = [...new Set(RAW.map(r=>r.year).filter(y=>y>0))].sort((a,b)=>b-a).map(String);
+    const defaultYear = years.includes('2026') ? '2026' : (years[0]||'all');
+    state = { year: defaultYear, months: new Set([1,2,3,4,5,6,7,8,9,10,11,12]), legal:'all', dept:'all', manager:'all' };
+    document.getElementById('f-year').value = defaultYear;
+    document.querySelectorAll('#month-pills .pill').forEach(p=>p.classList.add('active'));
+    document.getElementById('f-legal').value='all';
+    document.getElementById('f-dept').value='all';
+    document.getElementById('f-manager').value='all';
+    renderAll();
+  });
+  document.getElementById('refresh-btn').addEventListener('click', syncFromGoogleSheets);
+
+  renderAll(); // мгновенный рендер из офлайн-снимка, чтобы дашборд никогда не был пустым
+  syncFromGoogleSheets(); // затем пытаемся подтянуть свежие данные из Google Таблицы
+
+  if(SYNC_CONFIG.AUTO_REFRESH_MIN > 0){
+    setInterval(syncFromGoogleSheets, SYNC_CONFIG.AUTO_REFRESH_MIN * 60 * 1000);
+  }
+}
+
+init();
+</script>
+</body>
+</html>
